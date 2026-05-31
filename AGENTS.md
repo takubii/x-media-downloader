@@ -26,7 +26,7 @@
 
 ## Verification
 
-- Run `pnpm typecheck` after TypeScript changes.
+- Run `pnpm type` after TypeScript changes.
 - Run `pnpm build` before considering extension behavior complete.
 - For browser behavior, load `dist/` in Chrome or Edge with Developer mode enabled and test on image posts.
 

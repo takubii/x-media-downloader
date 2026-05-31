@@ -1,17 +1,19 @@
-import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
+
+const inputPath = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
 export default defineConfig({
   publicDir: "public",
   build: {
     emptyOutDir: true,
     outDir: "dist",
-    rollupOptions: {
+    rolldownOptions: {
       input: {
-        background: resolve(__dirname, "src/background/service-worker.ts"),
-        content: resolve(__dirname, "src/content/content.ts"),
-        options: resolve(__dirname, "src/options/options.html"),
-        offscreen: resolve(__dirname, "src/offscreen/offscreen.html"),
+        background: inputPath("src/background/service-worker.ts"),
+        content: inputPath("src/content/content.ts"),
+        options: inputPath("src/options/options.html"),
+        offscreen: inputPath("src/offscreen/offscreen.html"),
       },
       output: {
         entryFileNames: (chunk) => {
@@ -25,4 +27,3 @@ export default defineConfig({
     },
   },
 });
-

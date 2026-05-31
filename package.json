@@ -6,12 +6,12 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite build --watch",
-    "typecheck": "tsc --noEmit"
+    "type": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/chrome": "^0.0.326",
-    "@types/node": "^24.10.1",
-    "typescript": "^5.9.3",
-    "vite": "^7.2.4"
+    "@types/chrome": "^0.1.42",
+    "@types/node": "^25.9.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.14"
   }
 }
