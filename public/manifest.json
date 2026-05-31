@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "X Image Downloader",
+  "description": "Save X/Twitter post images to a selected local folder with one click.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "X Image Downloader"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://x.com/*", "https://twitter.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "host_permissions": [
+    "https://x.com/*",
+    "https://twitter.com/*",
+    "https://pbs.twimg.com/*"
+  ],
+  "options_page": "src/options/options.html",
+  "permissions": ["offscreen", "storage"]
+}

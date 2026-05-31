@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>X Image Downloader Options</title>
+    <script type="module" src="./options.ts"></script>
+  </head>
+  <body>
+    <main class="page">
+      <header>
+        <h1>X Image Downloader</h1>
+        <p>Choose a folder once, then save X images from the hover button.</p>
+      </header>
+
+      <section class="section">
+        <h2>Save Folder</h2>
+        <button id="chooseFolder" type="button">Choose Folder</button>
+        <p id="folderStatus" class="status">No folder selected.</p>
+      </section>
+
+      <section class="section">
+        <h2>File Naming</h2>
+        <label class="field">
+          <span>Filename template</span>
+          <input id="filenameTemplate" type="text" autocomplete="off" />
+        </label>
+        <p class="hint">
+          Available variables: {author}, {tweetId}, {date}, {time}, {originalName}
+        </p>
+
+        <label class="field">
+          <span>Duplicate behavior</span>
+          <select id="duplicateBehavior">
+            <option value="overwrite">Overwrite</option>
+            <option value="skip">Skip</option>
+            <option value="rename">Rename</option>
+          </select>
+        </label>
+
+        <label class="checkbox">
+          <input id="preferOriginalImage" type="checkbox" />
+          <span>Prefer original image quality</span>
+        </label>
+      </section>
+
+      <p id="saveStatus" class="status"></p>
+    </main>
+  </body>
+</html>
+
