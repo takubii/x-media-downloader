@@ -14,63 +14,56 @@ chrome.runtime.onInstalled.addListener(() => {
   void chrome.runtime.openOptionsPage();
 });
 
-chrome.runtime.onMessage.addListener(
-  (message: RuntimeMessage, _sender, sendResponse) => {
-    if (message.type === "DEBUG_LOG") {
-      writeDebugConsole(message.entry);
-      appendDebugLog(message.entry)
-        .then(() => sendResponse({ ok: true }))
-        .catch((error: unknown) => {
-          writeDebugConsole(
-            createDebugLogEntry(
-              "background",
-              "error",
-              "Failed to persist debug log.",
-              error,
-            ),
-          );
-          sendResponse({ ok: false });
-        });
-      return true;
-    }
+chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResponse) => {
+  if (message.type === "DEBUG_LOG") {
+    writeDebugConsole(message.entry);
+    appendDebugLog(message.entry)
+      .then(() => sendResponse({ ok: true }))
+      .catch((error: unknown) => {
+        writeDebugConsole(
+          createDebugLogEntry("background", "error", "Failed to persist debug log.", error),
+        );
+        sendResponse({ ok: false });
+      });
+    return true;
+  }
 
-    if (message.type === "OPEN_OPTIONS") {
-      void logBackground("info", "Opening options page by request.");
-      void chrome.runtime.openOptionsPage();
-      sendResponse({ ok: true });
-      return false;
-    }
+  if (message.type === "OPEN_OPTIONS") {
+    void logBackground("info", "Opening options page by request.");
+    void chrome.runtime.openOptionsPage();
+    sendResponse({ ok: true });
+    return false;
+  }
 
-    if (message.type !== "SAVE_IMAGE") {
-      return false;
-    }
+  if (message.type !== "SAVE_IMAGE") {
+    return false;
+  }
 
-    void logBackground("info", "Save image request received.", {
-      imageUrl: message.payload.imageUrl,
-      pageUrl: message.payload.pageUrl,
+  void logBackground("info", "Save image request received.", {
+    imageUrl: message.payload.imageUrl,
+    pageUrl: message.payload.pageUrl,
+  });
+
+  saveImageViaOffscreen(message)
+    .then((response) => {
+      void logBackground(
+        response.ok ? "info" : "warn",
+        response.ok ? "Save image request completed." : "Save image request failed.",
+        response,
+      );
+      sendResponse(response);
+    })
+    .catch((error: unknown) => {
+      void logBackground("error", "Save image request threw before response.", error);
+      sendResponse({
+        ok: false,
+        error: getErrorMessage(error),
+        reason: "download-failed",
+      } satisfies SaveImageResponse);
     });
 
-    saveImageViaOffscreen(message)
-      .then((response) => {
-        void logBackground(
-          response.ok ? "info" : "warn",
-          response.ok ? "Save image request completed." : "Save image request failed.",
-          response,
-        );
-        sendResponse(response);
-      })
-      .catch((error: unknown) => {
-        void logBackground("error", "Save image request threw before response.", error);
-        sendResponse({
-          ok: false,
-          error: getErrorMessage(error),
-          reason: "download-failed",
-        } satisfies SaveImageResponse);
-      });
-
-    return true;
-  },
-);
+  return true;
+});
 
 async function saveImageViaOffscreen(
   message: Extract<RuntimeMessage, { type: "SAVE_IMAGE" }>,
@@ -133,12 +126,7 @@ async function logBackground(
     await sendDebugLog("background", level, message, details);
   } catch (error) {
     writeDebugConsole(
-      createDebugLogEntry(
-        "background",
-        "error",
-        "Failed to write background debug log.",
-        error,
-      ),
+      createDebugLogEntry("background", "error", "Failed to write background debug log.", error),
     );
   }
 }

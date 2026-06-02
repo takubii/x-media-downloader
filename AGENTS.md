@@ -27,6 +27,8 @@
 ## Verification
 
 - Run `pnpm type` after TypeScript changes.
+- Run `pnpm lint` after source or test changes.
+- Run `pnpm format:check` after formatting-sensitive changes.
 - Run `pnpm build` before considering extension behavior complete.
 - For browser behavior, load `dist/` in Chrome or Edge with Developer mode enabled and test on image posts.
 

@@ -37,4 +37,3 @@ export async function saveSettings(settings: Partial<Settings>): Promise<void> {
 function isDuplicateBehavior(value: unknown): value is DuplicateBehavior {
   return value === "overwrite" || value === "skip" || value === "rename";
 }
-

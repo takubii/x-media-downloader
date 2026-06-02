@@ -9,24 +9,13 @@ type DirectoryPickerOptions = {
   startIn?: WellKnownDirectory | FileSystemHandle;
 };
 
-type WellKnownDirectory =
-  | "desktop"
-  | "documents"
-  | "downloads"
-  | "music"
-  | "pictures"
-  | "videos";
+type WellKnownDirectory = "desktop" | "documents" | "downloads" | "music" | "pictures" | "videos";
 
 interface Window {
   showDirectoryPicker(options?: DirectoryPickerOptions): Promise<FileSystemDirectoryHandle>;
 }
 
 interface FileSystemHandle {
-  queryPermission(
-    descriptor?: FileSystemHandlePermissionDescriptor,
-  ): Promise<PermissionState>;
-  requestPermission(
-    descriptor?: FileSystemHandlePermissionDescriptor,
-  ): Promise<PermissionState>;
+  queryPermission(descriptor?: FileSystemHandlePermissionDescriptor): Promise<PermissionState>;
+  requestPermission(descriptor?: FileSystemHandlePermissionDescriptor): Promise<PermissionState>;
 }
-

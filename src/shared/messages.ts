@@ -7,10 +7,7 @@ export type SaveImagePayload = {
   tweetId?: string;
 };
 
-export type SaveFailureReason =
-  | "folder-not-selected"
-  | "permission-denied"
-  | "download-failed";
+export type SaveFailureReason = "folder-not-selected" | "permission-denied" | "download-failed";
 
 export type SaveImageResponse =
   | { ok: true; filename: string; skipped?: boolean }

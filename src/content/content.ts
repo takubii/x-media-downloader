@@ -143,10 +143,7 @@ saveButton.addEventListener("click", async (event) => {
 
   setButtonState("failed");
 
-  if (
-    response.reason === "folder-not-selected" ||
-    response.reason === "permission-denied"
-  ) {
+  if (response.reason === "folder-not-selected" || response.reason === "permission-denied") {
     await chrome.runtime.sendMessage({ type: "OPEN_OPTIONS" });
   }
 });
@@ -267,11 +264,7 @@ function findStatusInfo(image: HTMLImageElement): {
   return {};
 }
 
-async function logContent(
-  level: DebugLogLevel,
-  message: string,
-  details?: unknown,
-): Promise<void> {
+async function logContent(level: DebugLogLevel, message: string, details?: unknown): Promise<void> {
   const entry: DebugLogEntry = {
     timestamp: new Date().toISOString(),
     source: "content",

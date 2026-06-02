@@ -28,7 +28,7 @@ export function withExtension(base: string, ext: string): string {
 
 export function sanitizeFilename(value: string): string {
   return value
-    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
+    .replace(/[<>:"/\\|?*\p{Cc}]/gu, "_")
     .replace(/\s+/g, " ")
     .replace(/[. ]+$/g, "")
     .trim()
@@ -54,4 +54,3 @@ function formatTime(date: Date): string {
   const seconds = String(date.getSeconds()).padStart(2, "0");
   return `${hours}${minutes}${seconds}`;
 }
-

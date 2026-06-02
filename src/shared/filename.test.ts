@@ -1,11 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import {
-  buildFilenameBase,
-  sanitizeExtension,
-  sanitizeFilename,
-  withExtension,
-} from "./filename";
+import { buildFilenameBase, sanitizeExtension, sanitizeFilename, withExtension } from "./filename";
 
 describe("buildFilenameBase", () => {
   test("replaces supported template variables with sanitized values", () => {

@@ -72,10 +72,7 @@ clearLogs.addEventListener("click", async () => {
 });
 
 async function init(): Promise<void> {
-  const [settings, directoryHandle] = await Promise.all([
-    getSettings(),
-    getDirectoryHandle(),
-  ]);
+  const [settings, directoryHandle] = await Promise.all([getSettings(), getDirectoryHandle()]);
 
   filenameTemplate.value = settings.filenameTemplate;
   duplicateBehavior.value = settings.duplicateBehavior;

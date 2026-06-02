@@ -9,9 +9,7 @@ export type SavedFileRecord = {
   imageKey: string;
 };
 
-export async function saveDirectoryHandle(
-  handle: FileSystemDirectoryHandle,
-): Promise<void> {
+export async function saveDirectoryHandle(handle: FileSystemDirectoryHandle): Promise<void> {
   const db = await openDatabase();
   await putValue(db, HANDLE_STORE, handle, DIRECTORY_KEY);
   db.close();
@@ -19,18 +17,12 @@ export async function saveDirectoryHandle(
 
 export async function getDirectoryHandle(): Promise<FileSystemDirectoryHandle | null> {
   const db = await openDatabase();
-  const handle = await getValue<FileSystemDirectoryHandle>(
-    db,
-    HANDLE_STORE,
-    DIRECTORY_KEY,
-  );
+  const handle = await getValue<FileSystemDirectoryHandle>(db, HANDLE_STORE, DIRECTORY_KEY);
   db.close();
   return handle ?? null;
 }
 
-export async function getSavedFileRecord(
-  filename: string,
-): Promise<SavedFileRecord | null> {
+export async function getSavedFileRecord(filename: string): Promise<SavedFileRecord | null> {
   const db = await openDatabase();
   const record = await getValue<SavedFileRecord>(db, SAVED_FILE_STORE, filename);
   db.close();
@@ -64,11 +56,7 @@ function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
-function getValue<T>(
-  db: IDBDatabase,
-  storeName: string,
-  key: IDBValidKey,
-): Promise<T | undefined> {
+function getValue<T>(db: IDBDatabase, storeName: string, key: IDBValidKey): Promise<T | undefined> {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(storeName, "readonly");
     const store = transaction.objectStore(storeName);
@@ -94,4 +82,3 @@ function putValue<T>(
     request.onerror = () => reject(request.error);
   });
 }
-

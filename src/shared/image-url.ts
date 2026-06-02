@@ -44,4 +44,3 @@ function getImageExtension(url: URL): string {
   const extension = lastPathPart.match(/\.([a-zA-Z0-9]+)$/)?.[1];
   return extension || "jpg";
 }
-

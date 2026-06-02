@@ -1,9 +1,4 @@
-import type {
-  DebugLogEntry,
-  DebugLogLevel,
-  DebugLogSource,
-  RuntimeMessage,
-} from "./messages";
+import type { DebugLogEntry, DebugLogLevel, DebugLogSource, RuntimeMessage } from "./messages";
 
 const DEBUG_LOG_STORAGE_KEY = "debugLogs";
 const MAX_DEBUG_LOGS = 200;

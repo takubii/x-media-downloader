@@ -1,16 +1,10 @@
 import { describe, expect, test } from "vitest";
 
-import {
-  getImageKey,
-  getImageMetadata,
-  toOriginalImageUrl,
-} from "./image-url";
+import { getImageKey, getImageMetadata, toOriginalImageUrl } from "./image-url";
 
 describe("toOriginalImageUrl", () => {
   test("requests original quality for X media images", () => {
-    const url = toOriginalImageUrl(
-      "https://pbs.twimg.com/media/example?format=jpg&name=small",
-    );
+    const url = toOriginalImageUrl("https://pbs.twimg.com/media/example?format=jpg&name=small");
 
     expect(url).toBe("https://pbs.twimg.com/media/example?format=jpg&name=orig");
   });
@@ -56,8 +50,8 @@ describe("getImageMetadata", () => {
 
 describe("getImageKey", () => {
   test("normalizes image variants to the same key", () => {
-    expect(
-      getImageKey("https://pbs.twimg.com/media/example?format=jpg&name=small"),
-    ).toBe("https://pbs.twimg.com/media/example?format=jpg");
+    expect(getImageKey("https://pbs.twimg.com/media/example?format=jpg&name=small")).toBe(
+      "https://pbs.twimg.com/media/example?format=jpg",
+    );
   });
 });

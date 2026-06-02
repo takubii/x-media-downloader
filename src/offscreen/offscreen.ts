@@ -9,27 +9,25 @@ import { getImageKey, getImageMetadata, toOriginalImageUrl } from "../shared/ima
 import type { RuntimeMessage, SaveImagePayload, SaveImageResponse } from "../shared/messages";
 import type { Settings } from "../shared/settings";
 
-chrome.runtime.onMessage.addListener(
-  (message: RuntimeMessage, _sender, sendResponse) => {
-    if (message.type !== "SAVE_IMAGE_OFFSCREEN" || message.target !== "offscreen") {
-      return false;
-    }
+chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResponse) => {
+  if (message.type !== "SAVE_IMAGE_OFFSCREEN" || message.target !== "offscreen") {
+    return false;
+  }
 
-    void logOffscreen("info", "Offscreen save request received.", {
-      imageUrl: message.payload.imageUrl,
-      pageUrl: message.payload.pageUrl,
+  void logOffscreen("info", "Offscreen save request received.", {
+    imageUrl: message.payload.imageUrl,
+    pageUrl: message.payload.pageUrl,
+  });
+
+  saveImage(message.payload, message.settings)
+    .then(sendResponse)
+    .catch((error: unknown) => {
+      void logOffscreen("error", "Offscreen save request failed.", error);
+      sendResponse(toFailureResponse(error));
     });
 
-    saveImage(message.payload, message.settings)
-      .then(sendResponse)
-      .catch((error: unknown) => {
-        void logOffscreen("error", "Offscreen save request failed.", error);
-        sendResponse(toFailureResponse(error));
-      });
-
-    return true;
-  },
-);
+  return true;
+});
 
 async function saveImage(
   payload: SaveImagePayload,

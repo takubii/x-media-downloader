@@ -17,4 +17,3 @@ Load `dist/` from `chrome://extensions` with Developer mode enabled.
 - Choose a save folder once from the extension options page.
 - Save with one click from the hover button shown on images.
 - Videos, GIFs, bulk save, and Chrome Web Store packaging are out of scope for the MVP.
-

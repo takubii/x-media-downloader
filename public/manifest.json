@@ -17,11 +17,7 @@
       "run_at": "document_idle"
     }
   ],
-  "host_permissions": [
-    "https://x.com/*",
-    "https://twitter.com/*",
-    "https://pbs.twimg.com/*"
-  ],
+  "host_permissions": ["https://x.com/*", "https://twitter.com/*", "https://pbs.twimg.com/*"],
   "options_page": "src/options/options.html",
   "permissions": ["offscreen", "storage"]
 }
