@@ -2,6 +2,16 @@ type SaveResponse =
   | { ok: true; filename?: string; skipped?: boolean }
   | { ok: false; error: string; reason?: string };
 
+type DebugLogLevel = "debug" | "info" | "warn" | "error";
+
+type DebugLogEntry = {
+  timestamp: string;
+  source: "content";
+  level: DebugLogLevel;
+  message: string;
+  details?: string;
+};
+
 type ImageInfo = {
   imageUrl: string;
   pageUrl: string;
@@ -99,16 +109,32 @@ saveButton.addEventListener("click", async (event) => {
   event.stopPropagation();
 
   if (!currentImage) {
+    void logContent("warn", "Save button clicked without a current image.");
     return;
   }
 
   const info = buildImageInfo(currentImage);
+  void logContent("info", "Save button clicked.", info);
   setButtonState("saving");
 
-  const response = (await chrome.runtime.sendMessage({
-    type: "SAVE_IMAGE",
-    payload: info,
-  })) as SaveResponse;
+  let response: SaveResponse;
+
+  try {
+    response = (await chrome.runtime.sendMessage({
+      type: "SAVE_IMAGE",
+      payload: info,
+    })) as SaveResponse;
+  } catch (error) {
+    void logContent("error", "Save request failed before receiving a response.", error);
+    setButtonState("failed");
+    return;
+  }
+
+  void logContent(
+    response.ok ? "info" : "warn",
+    response.ok ? "Save request succeeded." : "Save request returned failure.",
+    response,
+  );
 
   if (response.ok) {
     setButtonState(response.skipped ? "skipped" : "saved");
@@ -239,4 +265,68 @@ function findStatusInfo(image: HTMLImageElement): {
   }
 
   return {};
+}
+
+async function logContent(
+  level: DebugLogLevel,
+  message: string,
+  details?: unknown,
+): Promise<void> {
+  const entry: DebugLogEntry = {
+    timestamp: new Date().toISOString(),
+    source: "content",
+    level,
+    message,
+    details: stringifyDetails(details),
+  };
+  writeDebugConsole(entry);
+
+  try {
+    await chrome.runtime.sendMessage({ type: "DEBUG_LOG", entry });
+  } catch {
+    // This is expected after the extension is reloaded while an existing X tab
+    // still has the old content script injected.
+  }
+}
+
+function writeDebugConsole(entry: DebugLogEntry): void {
+  const text = `[x-image-downloader] [${entry.source}] ${entry.message}`;
+  const details = entry.details ? JSON.parse(entry.details) : undefined;
+
+  if (entry.level === "error") {
+    console.error(text, details);
+    return;
+  }
+
+  if (entry.level === "warn") {
+    console.warn(text, details);
+    return;
+  }
+
+  if (entry.level === "info") {
+    console.info(text, details);
+    return;
+  }
+
+  console.debug(text, details);
+}
+
+function stringifyDetails(details: unknown): string | undefined {
+  if (details === undefined) {
+    return undefined;
+  }
+
+  if (details instanceof Error) {
+    return JSON.stringify({
+      name: details.name,
+      message: details.message,
+      stack: details.stack,
+    });
+  }
+
+  try {
+    return JSON.stringify(details);
+  } catch {
+    return JSON.stringify(String(details));
+  }
 }

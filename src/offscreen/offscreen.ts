@@ -4,9 +4,10 @@ import {
   getSavedFileRecord,
   saveSavedFileRecord,
 } from "../shared/file-system-db";
+import { sendDebugLog } from "../shared/debug-log";
 import { getImageKey, getImageMetadata, toOriginalImageUrl } from "../shared/image-url";
 import type { RuntimeMessage, SaveImagePayload, SaveImageResponse } from "../shared/messages";
-import { getSettings } from "../shared/settings";
+import type { Settings } from "../shared/settings";
 
 chrome.runtime.onMessage.addListener(
   (message: RuntimeMessage, _sender, sendResponse) => {
@@ -14,9 +15,15 @@ chrome.runtime.onMessage.addListener(
       return false;
     }
 
-    saveImage(message.payload)
+    void logOffscreen("info", "Offscreen save request received.", {
+      imageUrl: message.payload.imageUrl,
+      pageUrl: message.payload.pageUrl,
+    });
+
+    saveImage(message.payload, message.settings)
       .then(sendResponse)
       .catch((error: unknown) => {
+        void logOffscreen("error", "Offscreen save request failed.", error);
         sendResponse(toFailureResponse(error));
       });
 
@@ -24,10 +31,14 @@ chrome.runtime.onMessage.addListener(
   },
 );
 
-async function saveImage(payload: SaveImagePayload): Promise<SaveImageResponse> {
+async function saveImage(
+  payload: SaveImagePayload,
+  settings: Settings,
+): Promise<SaveImageResponse> {
   const directoryHandle = await getDirectoryHandle();
 
   if (!directoryHandle) {
+    void logOffscreen("warn", "No save folder handle found in IndexedDB.");
     return {
       ok: false,
       error: "Save folder is not selected.",
@@ -38,6 +49,9 @@ async function saveImage(payload: SaveImagePayload): Promise<SaveImageResponse> 
   const permission = await ensureReadWritePermission(directoryHandle);
 
   if (permission !== "granted") {
+    void logOffscreen("warn", "Save folder permission was not granted.", {
+      permission,
+    });
     return {
       ok: false,
       error: "Save folder permission was denied.",
@@ -45,10 +59,13 @@ async function saveImage(payload: SaveImagePayload): Promise<SaveImageResponse> 
     };
   }
 
-  const settings = await getSettings();
   const url = settings.preferOriginalImage
     ? toOriginalImageUrl(payload.imageUrl)
     : payload.imageUrl;
+  void logOffscreen("debug", "Fetching image blob.", {
+    preferredUrl: url,
+    fallbackUrl: payload.imageUrl,
+  });
   const blob = await fetchImageBlob(url, payload.imageUrl);
   const metadata = getImageMetadata(payload);
   const imageKey = getImageKey(payload.imageUrl);
@@ -62,15 +79,24 @@ async function saveImage(payload: SaveImagePayload): Promise<SaveImageResponse> 
   });
 
   if (!filename) {
+    void logOffscreen("info", "Image save skipped by duplicate behavior.", {
+      filename: withExtension(base, metadata.ext),
+    });
     return { ok: true, filename: withExtension(base, metadata.ext), skipped: true };
   }
 
+  void logOffscreen("debug", "Writing image file.", {
+    filename,
+    size: blob.size,
+    type: blob.type,
+  });
   const fileHandle = await directoryHandle.getFileHandle(filename, { create: true });
   const writable = await fileHandle.createWritable();
   await writable.write(blob);
   await writable.close();
   await saveSavedFileRecord({ filename, imageKey });
 
+  void logOffscreen("info", "Image file saved.", { filename });
   return { ok: true, filename };
 }
 
@@ -81,22 +107,35 @@ async function ensureReadWritePermission(
     mode: "readwrite",
   };
   const current = await handle.queryPermission(descriptor);
+  void logOffscreen("debug", "Queried save folder permission.", { current });
 
   if (current === "granted") {
     return current;
   }
 
-  return handle.requestPermission(descriptor);
+  const requested = await handle.requestPermission(descriptor);
+  void logOffscreen("debug", "Requested save folder permission.", { requested });
+  return requested;
 }
 
 async function fetchImageBlob(preferredUrl: string, fallbackUrl: string): Promise<Blob> {
   const preferredResponse = await fetch(preferredUrl);
+  void logOffscreen("debug", "Preferred image fetch completed.", {
+    status: preferredResponse.status,
+    ok: preferredResponse.ok,
+    url: preferredUrl,
+  });
 
   if (preferredResponse.ok) {
     return preferredResponse.blob();
   }
 
   const fallbackResponse = await fetch(fallbackUrl);
+  void logOffscreen("debug", "Fallback image fetch completed.", {
+    status: fallbackResponse.status,
+    ok: fallbackResponse.ok,
+    url: fallbackUrl,
+  });
 
   if (fallbackResponse.ok) {
     return fallbackResponse.blob();
@@ -190,3 +229,10 @@ function toFailureResponse(error: unknown): SaveImageResponse {
   };
 }
 
+async function logOffscreen(
+  level: "debug" | "info" | "warn" | "error",
+  message: string,
+  details?: unknown,
+): Promise<void> {
+  await sendDebugLog("offscreen", level, message, details);
+}
