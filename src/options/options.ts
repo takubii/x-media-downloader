@@ -9,6 +9,7 @@ const filenameTemplate = getElement<HTMLInputElement>("filenameTemplate");
 const duplicateBehavior = getElement<HTMLSelectElement>("duplicateBehavior");
 const preferOriginalImage = getElement<HTMLInputElement>("preferOriginalImage");
 const chooseFolder = getElement<HTMLButtonElement>("chooseFolder");
+const folderPermissionBanner = getElement<HTMLDivElement>("folderPermissionBanner");
 const folderStatus = getElement<HTMLParagraphElement>("folderStatus");
 const saveStatus = getElement<HTMLParagraphElement>("saveStatus");
 const refreshLogs = getElement<HTMLButtonElement>("refreshLogs");
@@ -35,7 +36,10 @@ chooseFolder.addEventListener("click", async () => {
     void logOptions("info", "Save folder selected.", {
       folderName: handle.name,
     });
-    folderStatus.textContent = `Selected: ${handle.name}`;
+    setFolderStatus({
+      directoryHandle: handle,
+      permission,
+    });
     setSaveStatus("Folder saved.");
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
@@ -77,10 +81,40 @@ async function init(): Promise<void> {
   filenameTemplate.value = settings.filenameTemplate;
   duplicateBehavior.value = settings.duplicateBehavior;
   preferOriginalImage.checked = settings.preferOriginalImage;
-  folderStatus.textContent = directoryHandle
-    ? `Selected: ${directoryHandle.name}`
-    : "No folder selected.";
+  await renderFolderStatus(directoryHandle);
   await renderDebugLogs();
+}
+
+async function renderFolderStatus(
+  directoryHandle: FileSystemDirectoryHandle | null,
+): Promise<void> {
+  const permission = directoryHandle
+    ? await directoryHandle.queryPermission({ mode: "readwrite" })
+    : null;
+  setFolderStatus({ directoryHandle, permission });
+}
+
+function setFolderStatus(input: {
+  directoryHandle: FileSystemDirectoryHandle | null;
+  permission: PermissionState | null;
+}): void {
+  folderStatus.classList.remove("warning");
+
+  if (!input.directoryHandle) {
+    folderStatus.textContent = "No save folder selected.";
+    folderPermissionBanner.hidden = true;
+    return;
+  }
+
+  if (input.permission === "granted") {
+    folderStatus.textContent = `Save folder: ${input.directoryHandle.name}`;
+    folderPermissionBanner.hidden = true;
+    return;
+  }
+
+  folderStatus.textContent = `Save folder permission required: ${input.directoryHandle.name}`;
+  folderStatus.classList.add("warning");
+  folderPermissionBanner.hidden = false;
 }
 
 async function persistSettings(): Promise<void> {

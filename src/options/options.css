@@ -50,6 +50,17 @@ p {
   background: #fff;
 }
 
+.banner {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .field {
   display: grid;
   gap: 8px;
@@ -120,6 +131,10 @@ button.secondary:hover {
   margin-top: 12px;
   min-height: 20px;
   font-size: 14px;
+}
+
+.status.warning {
+  color: #92400e;
 }
 
 .debug-logs {
