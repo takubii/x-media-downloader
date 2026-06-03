@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "X Image Downloader",
   "description": "Save X/Twitter post images to a selected local folder with one click.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "action": {
     "default_title": "X Image Downloader"
   },
