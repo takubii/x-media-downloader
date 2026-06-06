@@ -1,7 +1,7 @@
 const BUTTON_SIZE = 34;
 const BUTTON_MARGIN = 8;
 
-export type SaveButtonState = "idle" | "saving" | "saved" | "skipped" | "failed";
+type SaveButtonState = "idle" | "saving" | "saved" | "skipped" | "failed";
 
 export type SaveButton = {
   element: HTMLButtonElement;

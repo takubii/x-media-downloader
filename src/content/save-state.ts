@@ -1,4 +1,4 @@
-export type ImageSaveState = "idle" | "saving" | "saved" | "skipped" | "failed";
+type ImageSaveState = "idle" | "saving" | "saved" | "skipped" | "failed";
 
 export type ImageSaveStateStore = {
   get: (imageKey: string) => ImageSaveState;

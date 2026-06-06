@@ -6,7 +6,7 @@ export type Settings = {
   preferOriginalImage: boolean;
 };
 
-export const defaultSettings: Settings = {
+const defaultSettings: Settings = {
   filenameTemplate: "{author}_{tweetId}",
   duplicateBehavior: "overwrite",
   preferOriginalImage: true,

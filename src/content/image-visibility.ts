@@ -1,5 +1,4 @@
-export const MIN_IMAGE_SIZE = 80;
-
+const MIN_IMAGE_SIZE = 80;
 const IMAGE_VISIBILITY_INSET = 16;
 const MEDIA_HOST = "pbs.twimg.com";
 const MAX_VISIBLE_ANCESTOR_DEPTH = 4;
@@ -22,7 +21,7 @@ export function getEligibleImage(target: EventTarget | null): HTMLImageElement |
   return target;
 }
 
-export function isXImageUrl(value: string): boolean {
+function isXImageUrl(value: string): boolean {
   try {
     const url = new URL(value);
     return url.hostname === MEDIA_HOST && url.pathname.includes("/media/");

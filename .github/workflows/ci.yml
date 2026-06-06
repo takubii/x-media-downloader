@@ -44,6 +44,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Check unused code
+        run: pnpm knip
+
       - name: Type check
         run: pnpm type
 
