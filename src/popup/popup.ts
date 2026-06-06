@@ -1,6 +1,5 @@
-import "./options.css";
+import "./popup.css";
 
-import { clearDebugLogs, readDebugLogs, sendDebugLog } from "../shared/debug-log";
 import { getBrowserLanguage, getUiMessages, resolveLocale } from "../shared/locale";
 import type { LanguageSetting, UiMessages } from "../shared/locale";
 import { getSettings, normalizeSettings, saveSettings } from "../shared/settings";
@@ -20,10 +19,8 @@ const duplicateBehavior = getElement<HTMLSelectElement>("duplicateBehavior");
 const preferOriginalImage = getElement<HTMLInputElement>("preferOriginalImage");
 const chooseFolder = getElement<HTMLButtonElement>("chooseFolder");
 const clearFolder = getElement<HTMLButtonElement>("clearFolder");
+const openFullSettings = getElement<HTMLButtonElement>("openFullSettings");
 const saveStatus = getElement<HTMLParagraphElement>("saveStatus");
-const refreshLogs = getElement<HTMLButtonElement>("refreshLogs");
-const clearLogs = getElement<HTMLButtonElement>("clearLogs");
-const debugLogs = getElement<HTMLPreElement>("debugLogs");
 
 const folderElements = {
   card: getElement<HTMLElement>("folderCard"),
@@ -46,44 +43,6 @@ language.addEventListener("change", () => {
   });
 });
 
-chooseFolder.addEventListener("click", async () => {
-  void logOptions("info", "Choosing save folder.");
-  const result = await chooseSaveFolder();
-  folderState = result.folderState;
-  render();
-
-  if (result.ok) {
-    void logOptions("info", "Save folder selected.");
-    setSaveStatus(messages.folderSaved);
-    return;
-  }
-
-  if (result.reason === "cancelled") {
-    void logOptions("info", "Folder selection cancelled.");
-    setSaveStatus(messages.folderSelectionCancelled);
-    return;
-  }
-
-  if (result.reason === "permission-not-granted") {
-    void logOptions("warn", "Save folder permission was not granted.");
-    setSaveStatus(messages.folderPermissionNotGranted);
-    return;
-  }
-
-  if (result.reason === "failed") {
-    void logOptions("error", "Folder selection failed.", result.error);
-    setSaveStatus(getErrorMessage(result.error));
-  }
-});
-
-clearFolder.addEventListener("click", async () => {
-  await clearSaveFolder();
-  folderState = { kind: "missing" };
-  render();
-  void logOptions("info", "Save folder cleared.");
-  setSaveStatus(messages.folderCleared);
-});
-
 filenameTemplate.addEventListener("input", () => {
   void updateSettings({
     filenameTemplate: filenameTemplate.value,
@@ -102,21 +61,47 @@ preferOriginalImage.addEventListener("change", () => {
   });
 });
 
-refreshLogs.addEventListener("click", () => {
-  void renderDebugLogs();
+chooseFolder.addEventListener("click", async () => {
+  const result = await chooseSaveFolder();
+  folderState = result.folderState;
+  render();
+
+  if (result.ok) {
+    setStatus(messages.folderSaved);
+    return;
+  }
+
+  if (result.reason === "cancelled") {
+    setStatus(messages.folderSelectionCancelled);
+    return;
+  }
+
+  if (result.reason === "permission-not-granted") {
+    setStatus(messages.folderPermissionNotGranted);
+    return;
+  }
+
+  if (result.reason === "failed") {
+    setStatus(getErrorMessage(result.error));
+  }
 });
 
-clearLogs.addEventListener("click", async () => {
-  await clearDebugLogs();
-  await logOptions("info", "Debug logs cleared.");
-  await renderDebugLogs();
+clearFolder.addEventListener("click", async () => {
+  await clearSaveFolder();
+  folderState = { kind: "missing" };
+  render();
+  setStatus(messages.folderCleared);
+});
+
+openFullSettings.addEventListener("click", () => {
+  void chrome.runtime.openOptionsPage();
+  window.close();
 });
 
 async function init(): Promise<void> {
   [settings, folderState] = await Promise.all([getSettings(), getFolderState()]);
   syncControls();
   render();
-  await renderDebugLogs();
 }
 
 async function updateSettings(next: Partial<Settings>): Promise<void> {
@@ -124,10 +109,7 @@ async function updateSettings(next: Partial<Settings>): Promise<void> {
   await saveSettings(next);
   syncControls();
   render();
-  if ("language" in next) {
-    await renderDebugLogs();
-  }
-  setSaveStatus(messages.settingsSaved);
+  setStatus(messages.settingsSaved);
 }
 
 function syncControls(): void {
@@ -145,24 +127,7 @@ function render(): void {
   renderFolderCard(folderElements, folderState, messages);
 }
 
-async function renderDebugLogs(): Promise<void> {
-  const logs = await readDebugLogs();
-
-  if (logs.length === 0) {
-    debugLogs.textContent = messages.noLogs;
-    return;
-  }
-
-  debugLogs.textContent = logs
-    .map((log) => {
-      const details = log.details ? ` ${log.details}` : "";
-      return `${log.timestamp} ${log.level.toUpperCase()} [${log.source}] ${log.message}${details}`;
-    })
-    .join("\n");
-  debugLogs.scrollTop = debugLogs.scrollHeight;
-}
-
-function setSaveStatus(message: string): void {
+function setStatus(message: string): void {
   saveStatus.textContent = message;
 }
 
@@ -178,12 +143,4 @@ function getElement<T extends HTMLElement>(id: string): T {
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-async function logOptions(
-  level: "debug" | "info" | "warn" | "error",
-  message: string,
-  details?: unknown,
-): Promise<void> {
-  await sendDebugLog("options", level, message, details);
 }

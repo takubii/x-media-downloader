@@ -12,6 +12,7 @@ export default defineConfig({
       input: {
         background: inputPath("src/background/service-worker.ts"),
         content: inputPath("src/content/content.ts"),
+        popup: inputPath("src/popup/popup.html"),
         options: inputPath("src/options/options.html"),
         offscreen: inputPath("src/offscreen/offscreen.html"),
       },

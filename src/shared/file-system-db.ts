@@ -22,6 +22,12 @@ export async function getDirectoryHandle(): Promise<FileSystemDirectoryHandle | 
   return handle ?? null;
 }
 
+export async function clearDirectoryHandle(): Promise<void> {
+  const db = await openDatabase();
+  await deleteValue(db, HANDLE_STORE, DIRECTORY_KEY);
+  db.close();
+}
+
 export async function getSavedFileRecord(filename: string): Promise<SavedFileRecord | null> {
   const db = await openDatabase();
   const record = await getValue<SavedFileRecord>(db, SAVED_FILE_STORE, filename);
@@ -77,6 +83,17 @@ function putValue<T>(
     const transaction = db.transaction(storeName, "readwrite");
     const store = transaction.objectStore(storeName);
     const request = store.put(value, key);
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function deleteValue(db: IDBDatabase, storeName: string, key: IDBValidKey): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeName, "readwrite");
+    const store = transaction.objectStore(storeName);
+    const request = store.delete(key);
 
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);

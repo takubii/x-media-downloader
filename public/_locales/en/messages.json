@@ -1,0 +1,11 @@
+{
+  "extensionName": {
+    "message": "X Image Downloader"
+  },
+  "extensionDescription": {
+    "message": "Save X/Twitter post images to a selected local folder with one click."
+  },
+  "extensionActionTitle": {
+    "message": "X Image Downloader"
+  }
+}

@@ -1,0 +1,59 @@
+@import "../shared/settings-surface.css";
+
+body {
+  width: 384px;
+  background: #f6f7f9;
+}
+
+.popup {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+h1 {
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.folder-card__content {
+  grid-template-columns: 8px minmax(0, 1fr);
+  gap: 12px;
+  padding: 16px;
+}
+
+.folder-card__status {
+  width: 8px;
+  min-height: 64px;
+}
+
+.folder-card__actions {
+  grid-column: 2;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+#folderName {
+  font-size: 24px;
+}
+
+.settings-stack {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.footer {
+  display: grid;
+  gap: 8px;
+}
+
+.status {
+  min-height: 20px;
+}

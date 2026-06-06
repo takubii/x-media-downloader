@@ -3,56 +3,88 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>X Image Downloader Options</title>
+    <title data-i18n="optionsPageTitle">X Image Downloader Options</title>
     <script type="module" src="./options.ts"></script>
   </head>
   <body>
     <main class="page">
-      <header>
-        <h1>X Image Downloader</h1>
-        <p>Choose a folder once, then save X images from the hover button.</p>
-      </header>
-
-      <section class="section">
-        <h2>Save Folder</h2>
-        <div id="folderPermissionBanner" class="banner" hidden>
-          Save folder permission is required. Choose the folder again to continue saving images.
+      <header class="hero">
+        <div class="hero__copy">
+          <p class="eyebrow">X Image Downloader</p>
+          <h1 data-i18n="settingsTitle">Settings</h1>
+          <p class="subtitle" data-i18n="appSubtitle"></p>
         </div>
-        <button id="chooseFolder" type="button">Choose Folder</button>
-        <p id="folderStatus" class="status">No folder selected.</p>
-      </section>
-
-      <section class="section">
-        <h2>File Naming</h2>
-        <label class="field">
-          <span>Filename template</span>
-          <input id="filenameTemplate" type="text" autocomplete="off" />
-        </label>
-        <p class="hint">Available variables: {author}, {tweetId}, {date}, {time}, {originalName}</p>
-
-        <label class="field">
-          <span>Duplicate behavior</span>
-          <select id="duplicateBehavior">
-            <option value="overwrite">Overwrite</option>
-            <option value="skip">Skip</option>
-            <option value="rename">Rename</option>
+        <label class="language-control">
+          <span data-i18n="languageLabel"></span>
+          <select id="language">
+            <option value="auto" data-i18n="languageAuto"></option>
+            <option value="ja" data-i18n="languageJapanese"></option>
+            <option value="en" data-i18n="languageEnglish"></option>
           </select>
         </label>
+      </header>
 
-        <label class="checkbox">
+      <section class="card folder-card" id="folderCard">
+        <div class="card-header">
+          <h2 data-i18n="saveFolderTitle"></h2>
+        </div>
+        <div class="folder-card__content">
+          <div class="folder-card__status"></div>
+          <div class="folder-card__body">
+            <h3 id="folderTitle"></h3>
+            <p id="folderDescription"></p>
+            <p class="folder-name">
+              <span class="folder-name__icon" aria-hidden="true">📁</span
+              ><span id="folderName"></span>
+            </p>
+          </div>
+          <div class="folder-card__actions">
+            <button id="chooseFolder" type="button"></button>
+            <button id="clearFolder" type="button" class="danger"></button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card settings-panel">
+        <div class="card-header">
+          <h2 data-i18n="fileNamingTitle"></h2>
+        </div>
+
+        <div class="settings-grid">
+          <label class="field">
+            <span data-i18n="filenameTemplateLabel"></span>
+            <input id="filenameTemplate" type="text" autocomplete="off" />
+          </label>
+
+          <label class="field">
+            <span data-i18n="duplicateBehaviorLabel"></span>
+            <select id="duplicateBehavior">
+              <option value="overwrite" data-i18n="duplicateOverwrite"></option>
+              <option value="skip" data-i18n="duplicateSkip"></option>
+              <option value="rename" data-i18n="duplicateRename"></option>
+            </select>
+          </label>
+        </div>
+
+        <p class="hint" data-i18n="filenameTemplateHint"></p>
+
+        <label class="switch">
           <input id="preferOriginalImage" type="checkbox" />
-          <span>Prefer original image quality</span>
+          <span data-i18n="preferOriginalImageLabel"></span>
         </label>
       </section>
 
-      <section class="section">
-        <h2>Debug Logs</h2>
+      <details class="diagnostics">
+        <summary>
+          <span data-i18n="developerDiagnostics"></span>
+        </summary>
+        <p class="hint" data-i18n="developerDiagnosticsHint"></p>
         <div class="actions">
-          <button id="refreshLogs" type="button">Refresh Logs</button>
-          <button id="clearLogs" type="button" class="secondary">Clear Logs</button>
+          <button id="refreshLogs" type="button" class="secondary" data-i18n="refreshLogs"></button>
+          <button id="clearLogs" type="button" class="secondary" data-i18n="clearLogs"></button>
         </div>
-        <pre id="debugLogs" class="debug-logs">No logs.</pre>
-      </section>
+        <pre id="debugLogs" class="debug-logs"></pre>
+      </details>
 
       <p id="saveStatus" class="status"></p>
     </main>

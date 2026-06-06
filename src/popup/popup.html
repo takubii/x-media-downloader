@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title data-i18n="popupPageTitle">X Image Downloader</title>
+    <script type="module" src="./popup.ts"></script>
+  </head>
+  <body>
+    <main class="popup">
+      <header class="header">
+        <div class="hero__copy">
+          <p class="eyebrow">X Image Downloader</p>
+          <h1 data-i18n="settingsTitle">Settings</h1>
+          <p class="subtitle" data-i18n="appSubtitle"></p>
+        </div>
+      </header>
+
+      <section class="card folder-card" id="folderCard">
+        <div class="card-header">
+          <h2 data-i18n="saveFolderTitle"></h2>
+        </div>
+        <div class="folder-card__content">
+          <div class="folder-card__status"></div>
+          <div class="folder-card__body">
+            <h3 id="folderTitle"></h3>
+            <p id="folderDescription"></p>
+            <p class="folder-name">
+              <span class="folder-name__icon" aria-hidden="true">📁</span
+              ><span id="folderName"></span>
+            </p>
+          </div>
+          <div class="folder-card__actions">
+            <button id="chooseFolder" type="button"></button>
+            <button id="clearFolder" type="button" class="danger"></button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card settings-stack">
+        <label class="field">
+          <span data-i18n="languageLabel"></span>
+          <select id="language">
+            <option value="auto" data-i18n="languageAuto"></option>
+            <option value="ja" data-i18n="languageJapanese"></option>
+            <option value="en" data-i18n="languageEnglish"></option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span data-i18n="filenameTemplateLabel"></span>
+          <input id="filenameTemplate" type="text" autocomplete="off" />
+        </label>
+        <p class="hint" data-i18n="filenameTemplateHint"></p>
+
+        <label class="field">
+          <span data-i18n="duplicateBehaviorLabel"></span>
+          <select id="duplicateBehavior">
+            <option value="overwrite" data-i18n="duplicateOverwrite"></option>
+            <option value="skip" data-i18n="duplicateSkip"></option>
+            <option value="rename" data-i18n="duplicateRename"></option>
+          </select>
+        </label>
+
+        <label class="switch">
+          <input id="preferOriginalImage" type="checkbox" />
+          <span data-i18n="preferOriginalImageLabel"></span>
+        </label>
+      </section>
+
+      <footer class="footer">
+        <button
+          id="openFullSettings"
+          type="button"
+          class="secondary"
+          data-i18n="openFullSettings"
+        ></button>
+        <p id="saveStatus" class="status"></p>
+      </footer>
+    </main>
+  </body>
+</html>

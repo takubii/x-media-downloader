@@ -3,6 +3,7 @@
   "entry": [
     "src/background/service-worker.ts",
     "src/content/content.ts",
+    "src/popup/popup.ts",
     "src/options/options.ts",
     "src/offscreen/offscreen.ts",
     "src/**/*.test.ts",

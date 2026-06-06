@@ -54,6 +54,10 @@ export async function sendDebugLog(
     return;
   }
 
+  if (typeof chrome === "undefined" || !chrome.runtime?.sendMessage) {
+    return;
+  }
+
   try {
     await chrome.runtime.sendMessage({
       type: "DEBUG_LOG",
@@ -66,6 +70,10 @@ export async function sendDebugLog(
 }
 
 export async function appendDebugLog(entry: DebugLogEntry): Promise<void> {
+  if (typeof chrome === "undefined" || !chrome.storage?.local) {
+    return;
+  }
+
   const result = await chrome.storage.local.get(DEBUG_LOG_STORAGE_KEY);
   const current = Array.isArray(result[DEBUG_LOG_STORAGE_KEY])
     ? (result[DEBUG_LOG_STORAGE_KEY] as DebugLogEntry[])
@@ -75,6 +83,10 @@ export async function appendDebugLog(entry: DebugLogEntry): Promise<void> {
 }
 
 export async function readDebugLogs(): Promise<DebugLogEntry[]> {
+  if (typeof chrome === "undefined" || !chrome.storage?.local) {
+    return [];
+  }
+
   const result = await chrome.storage.local.get(DEBUG_LOG_STORAGE_KEY);
   return Array.isArray(result[DEBUG_LOG_STORAGE_KEY])
     ? (result[DEBUG_LOG_STORAGE_KEY] as DebugLogEntry[])
@@ -82,6 +94,10 @@ export async function readDebugLogs(): Promise<DebugLogEntry[]> {
 }
 
 export async function clearDebugLogs(): Promise<void> {
+  if (typeof chrome === "undefined" || !chrome.storage?.local) {
+    return;
+  }
+
   await chrome.storage.local.remove(DEBUG_LOG_STORAGE_KEY);
 }
 
