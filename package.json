@@ -15,7 +15,7 @@
     "type": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/chrome": "^0.1.42",
+    "@types/chrome": "^0.1.43",
     "@types/node": "^25.9.1",
     "knip": "^6.16.0",
     "oxfmt": "^0.53.0",
