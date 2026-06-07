@@ -5,6 +5,12 @@
   "rangeStrategy": "bump",
   "packageRules": [
     {
+      "description": "Keep CI on the floating Node 24 major instead of pinning a generated patch version.",
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["node"],
+      "enabled": false
+    },
+    {
       "matchDatasources": ["npm"],
       "minimumReleaseAge": "1 day",
       "internalChecksFilter": "strict"

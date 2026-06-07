@@ -9,8 +9,10 @@
     "dev": "vite build --watch",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
+    "icons": "node scripts/generate-icons.mjs",
     "knip": "knip",
     "lint": "oxlint . --deny-warnings --vitest-plugin",
+    "package": "pnpm build && node scripts/package-extension.mjs",
     "test": "vitest run",
     "type": "tsc --noEmit"
   },
