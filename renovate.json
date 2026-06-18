@@ -3,6 +3,8 @@
   "extends": ["config:recommended"],
   "dependencyDashboard": true,
   "rangeStrategy": "bump",
+  "automergeType": "pr",
+  "platformAutomerge": false,
   "packageRules": [
     {
       "description": "Keep CI on floating Node major versions instead of pinning generated minor or patch versions.",
@@ -16,6 +18,11 @@
       "matchDatasources": ["npm"],
       "minimumReleaseAge": "1 day",
       "internalChecksFilter": "strict"
+    },
+    {
+      "description": "Automerge non-major dependency updates after CI passes.",
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "automerge": true
     }
   ]
 }
