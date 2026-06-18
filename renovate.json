@@ -4,7 +4,7 @@
   "dependencyDashboard": true,
   "rangeStrategy": "bump",
   "automergeType": "pr",
-  "platformAutomerge": false,
+  "platformAutomerge": true,
   "packageRules": [
     {
       "description": "Keep CI on floating Node major versions instead of pinning generated minor or patch versions.",
