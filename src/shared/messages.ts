@@ -21,9 +21,12 @@ export type SaveVideoPayload = {
 
 type SaveFailureReason = "folder-not-selected" | "permission-denied" | "download-failed";
 
-export type SaveImageResponse =
+export type SaveMediaResponse =
   | { ok: true; filename: string; skipped?: boolean }
   | { ok: false; error: string; reason?: SaveFailureReason };
+
+export type SaveImageResponse = SaveMediaResponse;
+export type SaveVideoResponse = SaveMediaResponse;
 
 export type DebugLogSource = "content" | "background" | "offscreen" | "options";
 export type DebugLogLevel = "debug" | "info" | "warn" | "error";
@@ -38,9 +41,16 @@ export type DebugLogEntry = {
 
 export type RuntimeMessage =
   | { type: "SAVE_IMAGE"; payload: SaveImagePayload }
+  | { type: "SAVE_VIDEO"; payload: SaveVideoPayload }
   | {
       type: "SAVE_IMAGE_OFFSCREEN";
       payload: SaveImagePayload;
+      settings: Settings;
+      target: "offscreen";
+    }
+  | {
+      type: "SAVE_VIDEO_OFFSCREEN";
+      payload: SaveVideoPayload;
       settings: Settings;
       target: "offscreen";
     }
