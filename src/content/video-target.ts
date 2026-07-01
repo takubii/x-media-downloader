@@ -29,6 +29,13 @@ export function detectXVideoMediaType(input: {
   return isTweetVideoUrl(input.videoUrl) ? "gif" : "video";
 }
 
+export function getXVideoKey(videoUrl: string): string {
+  const url = new URL(videoUrl);
+  url.search = "";
+  url.hash = "";
+  return url.toString();
+}
+
 export function getXVideoMediaId(value: string): string | null {
   try {
     const url = new URL(value);

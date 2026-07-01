@@ -7,10 +7,8 @@ import {
 } from "./image-visibility";
 import { createImageSaveStateStore } from "./save-state";
 import { createSaveButton } from "./save-button";
-import { resolveXVideoCandidate } from "./video-target";
-import { isLocalBuild } from "../shared/build-flags";
+import { getXVideoKey, resolveXVideoCandidate } from "./video-target";
 import type { SaveMediaResponse, SaveVideoPayload } from "../shared/messages";
-import { getVideoKey } from "../shared/video-url";
 
 type DebugLogLevel = "debug" | "info" | "warn" | "error";
 
@@ -292,7 +290,7 @@ function getEligibleVideoTarget(event: MouseEvent): VideoMediaTarget | null {
   return {
     kind: "video",
     element: video,
-    key: getVideoKey(candidate.videoUrl),
+    key: getXVideoKey(candidate.videoUrl),
     info: {
       videoUrl: candidate.videoUrl,
       pageUrl: location.href,
@@ -389,7 +387,7 @@ function findStatusInfo(element: Element): {
 }
 
 async function logContent(level: DebugLogLevel, message: string, details?: unknown): Promise<void> {
-  if (!isLocalBuild) {
+  if (!__LOCAL_BUILD__) {
     return;
   }
 

@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   detectXVideoMediaType,
   getDirectXMp4Url,
+  getXVideoKey,
   getXVideoMediaId,
   parseXVideoVariants,
   resolveXVideoCandidate,
@@ -118,6 +119,14 @@ describe("detectXVideoMediaType", () => {
         videoUrl: "https://video.twimg.com/tweet_video/example_id.mp4",
       }),
     ).toBe("gif");
+  });
+});
+
+describe("getXVideoKey", () => {
+  test("removes query and hash from video URLs", () => {
+    expect(getXVideoKey(`${highBitrateUrl}#fragment`)).toBe(
+      "https://video.twimg.com/ext_tw_video/1730942564943982592/pu/vid/avc1/592x1280/high.mp4",
+    );
   });
 });
 
