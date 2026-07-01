@@ -2,9 +2,13 @@ import { getContentImageKey } from "./image-key";
 import { getEligibleImage, getVisibleImageRect, isPointInsideRect } from "./image-visibility";
 import { createImageSaveStateStore } from "./save-state";
 import { createSaveButton } from "./save-button";
-import { getXVideoKey, getXVideoMediaId, resolveXVideoCandidate } from "./video-target";
-import { normalizeXVideoPageCandidate } from "./x-video-response";
-import type { XVideoPageCandidate } from "./x-video-response";
+import { getXVideoKey, resolveXVideoCandidate } from "./video-target";
+import {
+  createXVideoPageCandidateStore,
+  parseXVideoPageCandidateMessage,
+  requestXVideoPageCandidateSnapshot,
+} from "./x-video-page-candidates";
+import type { XVideoStatusInfo } from "./x-video-page-candidates";
 import type { SaveMediaResponse, SaveVideoPayload } from "../shared/messages";
 
 type DebugLogLevel = "debug" | "info" | "warn" | "error";
@@ -41,8 +45,6 @@ type VideoMediaTarget = {
 type MediaTarget = ImageMediaTarget | VideoMediaTarget;
 
 const MIN_VIDEO_SIZE = 80;
-const MAX_PAGE_VIDEO_CANDIDATE_CACHE_ENTRIES = 500;
-const MAX_MISSING_VIDEO_LOG_ENTRIES = 500;
 const MAX_DEBUG_LOGGED_CANDIDATES = 20;
 
 let currentMediaTarget: MediaTarget | null = null;
@@ -52,25 +54,17 @@ let visibilityUpdateFrame: number | null = null;
 
 const saveButton = createSaveButton();
 const saveStates = createImageSaveStateStore();
-const pageVideoCandidates = new Map<string, XVideoPageCandidate>();
-const missingVideoCandidateLogs = new Set<string>();
+const pageVideoCandidates = createXVideoPageCandidateStore();
 let unresolvedHoveredVideo: {
   video: HTMLVideoElement;
-  statusInfo: { author?: string; tweetId?: string };
-  cacheKeys: string[];
+  statusInfo: XVideoStatusInfo;
 } | null = null;
 
 window.addEventListener("message", (event: MessageEvent<unknown>) => {
   handleXVideoPageMessage(event);
 });
 
-window.postMessage(
-  {
-    source: "x-image-downloader-content",
-    type: "REQUEST_X_VIDEO_API_CANDIDATES",
-  },
-  location.origin,
-);
+requestXVideoPageCandidateSnapshot();
 
 document.addEventListener("mouseover", (event) => {
   pointerX = event.clientX;
@@ -294,13 +288,7 @@ function getEligibleVideoTarget(event: MouseEvent): VideoMediaTarget | null {
   }
 
   const videoSrc = video.currentSrc || video.src;
-  const candidate =
-    resolveXVideoCandidate({ videoSrc, posterUrl: video.poster }) ||
-    resolveXVideoCandidate({
-      videoSrc,
-      posterUrl: video.poster,
-      sourceText: document.documentElement.innerHTML,
-    });
+  const candidate = resolveXVideoCandidate({ videoSrc });
   const statusInfo = findStatusInfo(video);
 
   if (candidate) {
@@ -357,28 +345,24 @@ function buildVideoInfo(
 
 function getCachedResolvedVideoInfo(input: {
   video: HTMLVideoElement;
-  statusInfo: { author?: string; tweetId?: string };
+  statusInfo: XVideoStatusInfo;
 }): SaveVideoPayload | null {
-  const cacheKeys = getVideoResolutionCacheKeys(input.video, input.statusInfo);
+  const candidate = pageVideoCandidates.find(input.video, input.statusInfo);
 
-  for (const cacheKey of cacheKeys) {
-    const candidate = pageVideoCandidates.get(cacheKey);
-
-    if (candidate) {
-      return buildVideoInfo(input.video, candidate, input.statusInfo);
-    }
+  if (!candidate) {
+    return null;
   }
 
-  return null;
+  return buildVideoInfo(input.video, candidate, input.statusInfo);
 }
 
 function trackUnresolvedHoveredVideo(input: {
   video: HTMLVideoElement;
-  statusInfo: { author?: string; tweetId?: string };
+  statusInfo: XVideoStatusInfo;
 }): void {
-  const cacheKeys = getVideoResolutionCacheKeys(input.video, input.statusInfo);
+  const missingLog = pageVideoCandidates.markMissing(input.video, input.statusInfo);
 
-  if (cacheKeys.length === 0) {
+  if (!missingLog) {
     unresolvedHoveredVideo = null;
     return;
   }
@@ -386,19 +370,9 @@ function trackUnresolvedHoveredVideo(input: {
   unresolvedHoveredVideo = {
     video: input.video,
     statusInfo: input.statusInfo,
-    cacheKeys,
   };
 
-  const logKey = cacheKeys[0];
-
-  if (!missingVideoCandidateLogs.has(logKey)) {
-    addBoundedSetValue(missingVideoCandidateLogs, logKey, MAX_MISSING_VIDEO_LOG_ENTRIES);
-    void logContent("debug", "No cached X video candidate for hovered video yet.", {
-      tweetId: input.statusInfo.tweetId,
-      mediaId: input.video.poster ? getXVideoMediaId(input.video.poster) : null,
-      pageUrl: location.href,
-    });
-  }
+  void logContent("debug", "No cached X video candidate for hovered video yet.", missingLog);
 }
 
 function showResolvedVideoIfHovered(video: HTMLVideoElement, info: SaveVideoPayload): void {
@@ -416,34 +390,18 @@ function showResolvedVideoIfHovered(video: HTMLVideoElement, info: SaveVideoPayl
   updateButtonVisibility();
 }
 
-function getVideoResolutionCacheKeys(
-  video: HTMLVideoElement,
-  statusInfo: { tweetId?: string },
-): string[] {
-  const mediaId = video.poster ? getXVideoMediaId(video.poster) : null;
-
-  if (!mediaId) {
-    return [];
-  }
-
-  return [
-    ...(statusInfo.tweetId ? [getTweetMediaCacheKey(statusInfo.tweetId, mediaId)] : []),
-    getMediaCacheKey(mediaId),
-  ];
-}
-
 function handleXVideoPageMessage(event: MessageEvent<unknown>): void {
   if (event.source !== window || event.origin !== location.origin) {
     return;
   }
 
-  const pageMessage = parseXVideoPageMessage(event.data);
+  const pageMessage = parseXVideoPageCandidateMessage(event.data);
 
   if (!pageMessage) {
     return;
   }
 
-  cachePageVideoCandidates(pageMessage.candidates);
+  pageVideoCandidates.cache(pageMessage.candidates);
 
   void logContent("debug", "Observed X video candidates from page API response.", {
     delivery: pageMessage.delivery,
@@ -461,141 +419,27 @@ function handleXVideoPageMessage(event: MessageEvent<unknown>): void {
   showUnresolvedHoveredVideoIfResolved();
 }
 
-function cachePageVideoCandidates(candidates: readonly XVideoPageCandidate[]): void {
-  for (const candidate of candidates) {
-    setBoundedMapValue(
-      pageVideoCandidates,
-      getMediaCacheKey(candidate.mediaId),
-      candidate,
-      MAX_PAGE_VIDEO_CANDIDATE_CACHE_ENTRIES,
-    );
-
-    if (candidate.tweetId) {
-      setBoundedMapValue(
-        pageVideoCandidates,
-        getTweetMediaCacheKey(candidate.tweetId, candidate.mediaId),
-        candidate,
-        MAX_PAGE_VIDEO_CANDIDATE_CACHE_ENTRIES,
-      );
-    }
-  }
-}
-
 function showUnresolvedHoveredVideoIfResolved(): void {
   if (!unresolvedHoveredVideo) {
     return;
   }
 
-  for (const cacheKey of unresolvedHoveredVideo.cacheKeys) {
-    const candidate = pageVideoCandidates.get(cacheKey);
+  const candidate = pageVideoCandidates.find(
+    unresolvedHoveredVideo.video,
+    unresolvedHoveredVideo.statusInfo,
+  );
 
-    if (!candidate) {
-      continue;
-    }
-
-    const info = buildVideoInfo(
-      unresolvedHoveredVideo.video,
-      candidate,
-      unresolvedHoveredVideo.statusInfo,
-    );
-    showResolvedVideoIfHovered(unresolvedHoveredVideo.video, info);
-    unresolvedHoveredVideo = null;
+  if (!candidate) {
     return;
   }
-}
 
-function parseXVideoPageMessage(value: unknown): {
-  source: "x-image-downloader-page";
-  type: "X_VIDEO_API_CANDIDATES";
-  delivery: "live" | "snapshot";
-  requestPath?: string;
-  candidates: XVideoPageCandidate[];
-} | null {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  const candidate = value as {
-    source?: unknown;
-    type?: unknown;
-    delivery?: unknown;
-    requestPath?: unknown;
-    candidates?: unknown;
-  };
-
-  if (
-    candidate.source !== "x-image-downloader-page" ||
-    candidate.type !== "X_VIDEO_API_CANDIDATES" ||
-    (candidate.delivery !== "live" && candidate.delivery !== "snapshot") ||
-    !Array.isArray(candidate.candidates)
-  ) {
-    return null;
-  }
-
-  const candidates = candidate.candidates
-    .map((value) => normalizeXVideoPageCandidate(value))
-    .filter((value): value is XVideoPageCandidate => Boolean(value));
-
-  if (candidates.length === 0) {
-    return null;
-  }
-
-  return {
-    source: "x-image-downloader-page",
-    type: "X_VIDEO_API_CANDIDATES",
-    delivery: candidate.delivery,
-    requestPath: typeof candidate.requestPath === "string" ? candidate.requestPath : undefined,
-    candidates,
-  };
-}
-
-function getTweetMediaCacheKey(tweetId: string, mediaId: string): string {
-  return `${tweetId}:${mediaId}`;
-}
-
-function getMediaCacheKey(mediaId: string): string {
-  return `media:${mediaId}`;
-}
-
-function setBoundedMapValue<TKey, TValue>(
-  map: Map<TKey, TValue>,
-  key: TKey,
-  value: TValue,
-  maxEntries: number,
-): void {
-  if (map.has(key)) {
-    map.delete(key);
-  }
-
-  map.set(key, value);
-
-  while (map.size > maxEntries) {
-    const oldestKey = map.keys().next().value as TKey | undefined;
-
-    if (oldestKey === undefined) {
-      return;
-    }
-
-    map.delete(oldestKey);
-  }
-}
-
-function addBoundedSetValue<TValue>(set: Set<TValue>, value: TValue, maxEntries: number): void {
-  if (set.has(value)) {
-    set.delete(value);
-  }
-
-  set.add(value);
-
-  while (set.size > maxEntries) {
-    const oldestValue = set.values().next().value as TValue | undefined;
-
-    if (oldestValue === undefined) {
-      return;
-    }
-
-    set.delete(oldestValue);
-  }
+  const info = buildVideoInfo(
+    unresolvedHoveredVideo.video,
+    candidate,
+    unresolvedHoveredVideo.statusInfo,
+  );
+  showResolvedVideoIfHovered(unresolvedHoveredVideo.video, info);
+  unresolvedHoveredVideo = null;
 }
 
 function findHoveredVideo(
