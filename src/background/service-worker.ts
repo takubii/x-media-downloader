@@ -4,7 +4,7 @@ import {
   sendDebugLog,
   writeDebugConsole,
 } from "../shared/debug-log";
-import type { RuntimeMessage, SaveImageResponse } from "../shared/messages";
+import type { RuntimeMessage, SaveMediaResponse } from "../shared/messages";
 import { getSettings } from "../shared/settings";
 
 const OFFSCREEN_DOCUMENT_PATH = "src/offscreen/offscreen.html";
@@ -35,20 +35,23 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResp
     return false;
   }
 
-  if (message.type !== "SAVE_IMAGE") {
+  if (message.type !== "SAVE_IMAGE" && message.type !== "SAVE_VIDEO") {
     return false;
   }
 
-  void logBackground("info", "Save image request received.", {
-    imageUrl: message.payload.imageUrl,
+  const mediaLabel = message.type === "SAVE_IMAGE" ? "image" : message.payload.mediaType;
+  void logBackground("info", `Save ${mediaLabel} request received.`, {
+    mediaUrl: message.type === "SAVE_IMAGE" ? message.payload.imageUrl : message.payload.videoUrl,
     pageUrl: message.payload.pageUrl,
   });
 
-  saveImageViaOffscreen(message)
+  saveMediaViaOffscreen(message)
     .then((response) => {
       void logBackground(
         response.ok ? "info" : "warn",
-        response.ok ? "Save image request completed." : "Save image request failed.",
+        response.ok
+          ? `Save ${mediaLabel} request completed.`
+          : `Save ${mediaLabel} request failed.`,
         response,
       );
       sendResponse(response);
@@ -59,15 +62,15 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResp
         ok: false,
         error: getErrorMessage(error),
         reason: "download-failed",
-      } satisfies SaveImageResponse);
+      } satisfies SaveMediaResponse);
     });
 
   return true;
 });
 
-async function saveImageViaOffscreen(
-  message: Extract<RuntimeMessage, { type: "SAVE_IMAGE" }>,
-): Promise<SaveImageResponse> {
+async function saveMediaViaOffscreen(
+  message: Extract<RuntimeMessage, { type: "SAVE_IMAGE" | "SAVE_VIDEO" }>,
+): Promise<SaveMediaResponse> {
   await ensureOffscreenDocument();
   const settings = await getSettings();
 
@@ -76,6 +79,15 @@ async function saveImageViaOffscreen(
     preferOriginalImage: settings.preferOriginalImage,
     filenameTemplate: settings.filenameTemplate,
   });
+
+  if (message.type === "SAVE_VIDEO") {
+    return chrome.runtime.sendMessage({
+      type: "SAVE_VIDEO_OFFSCREEN",
+      target: "offscreen",
+      payload: message.payload,
+      settings,
+    } satisfies RuntimeMessage);
+  }
 
   return chrome.runtime.sendMessage({
     type: "SAVE_IMAGE_OFFSCREEN",

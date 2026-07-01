@@ -26,7 +26,6 @@ export type SaveMediaResponse =
   | { ok: false; error: string; reason?: SaveFailureReason };
 
 export type SaveImageResponse = SaveMediaResponse;
-export type SaveVideoResponse = SaveMediaResponse;
 
 export type DebugLogSource = "content" | "background" | "offscreen" | "options";
 export type DebugLogLevel = "debug" | "info" | "warn" | "error";

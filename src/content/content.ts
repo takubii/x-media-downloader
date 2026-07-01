@@ -7,12 +7,9 @@ import {
 } from "./image-visibility";
 import { createImageSaveStateStore } from "./save-state";
 import { createSaveButton } from "./save-button";
-import { getXVideoKey, resolveXVideoCandidate } from "./video-target";
-import type { SaveVideoPayload } from "../shared/messages";
-
-type SaveResponse =
-  | { ok: true; filename?: string; skipped?: boolean }
-  | { ok: false; error: string; reason?: string };
+import { resolveXVideoCandidate } from "./video-target";
+import type { SaveMediaResponse, SaveVideoPayload } from "../shared/messages";
+import { getVideoKey } from "../shared/video-url";
 
 type DebugLogLevel = "debug" | "info" | "warn" | "error";
 
@@ -122,25 +119,35 @@ saveButton.element.addEventListener("click", async (event) => {
   }
 
   if (target.kind === "video") {
-    void logContent("info", "Video/GIF save target clicked before save support is wired.", {
-      mediaKey,
-      ...target.info,
+    void logContent("info", "Save video/GIF button clicked.", target.info);
+    await saveMedia(mediaKey, {
+      type: "SAVE_VIDEO",
+      payload: target.info,
     });
     return;
   }
 
   const info = buildImageInfo(target.element);
   void logContent("info", "Save button clicked.", info);
+  await saveMedia(mediaKey, {
+    type: "SAVE_IMAGE",
+    payload: info,
+  });
+});
+
+async function saveMedia(
+  mediaKey: string,
+  message:
+    | { type: "SAVE_IMAGE"; payload: ImageInfo }
+    | { type: "SAVE_VIDEO"; payload: SaveVideoPayload },
+): Promise<void> {
   saveStates.set(mediaKey, "saving");
   updateVisibleButtonState(mediaKey);
 
-  let response: SaveResponse;
+  let response: SaveMediaResponse;
 
   try {
-    response = (await chrome.runtime.sendMessage({
-      type: "SAVE_IMAGE",
-      payload: info,
-    })) as SaveResponse;
+    response = (await chrome.runtime.sendMessage(message)) as SaveMediaResponse;
   } catch (error) {
     void logContent("error", "Save request failed before receiving a response.", error);
     saveStates.set(mediaKey, "failed");
@@ -166,7 +173,7 @@ saveButton.element.addEventListener("click", async (event) => {
   if (response.reason === "folder-not-selected" || response.reason === "permission-denied") {
     await chrome.runtime.sendMessage({ type: "OPEN_OPTIONS" });
   }
-});
+}
 
 function updateButtonVisibility(): void {
   if (!currentMediaTarget) {
@@ -284,7 +291,7 @@ function getEligibleVideoTarget(event: MouseEvent): VideoMediaTarget | null {
   return {
     kind: "video",
     element: video,
-    key: getXVideoKey(candidate.videoUrl),
+    key: getVideoKey(candidate.videoUrl),
     info: {
       videoUrl: candidate.videoUrl,
       pageUrl: location.href,

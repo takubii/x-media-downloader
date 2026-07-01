@@ -8,39 +8,112 @@ import { sendDebugLog } from "../shared/debug-log";
 import { getImageKey, getImageMetadata, toOriginalImageUrl } from "../shared/image-url";
 import { normalizeMediaType } from "../shared/media-type";
 import type { MediaType } from "../shared/media-type";
-import type { RuntimeMessage, SaveImagePayload, SaveImageResponse } from "../shared/messages";
+import type {
+  RuntimeMessage,
+  SaveImagePayload,
+  SaveMediaResponse,
+  SaveVideoPayload,
+} from "../shared/messages";
 import type { Settings } from "../shared/settings";
+import { getVideoKey, getVideoMetadata } from "../shared/video-url";
 
 chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResponse) => {
-  if (message.type !== "SAVE_IMAGE_OFFSCREEN" || message.target !== "offscreen") {
-    return false;
-  }
-
-  void logOffscreen("info", "Offscreen save request received.", {
-    imageUrl: message.payload.imageUrl,
-    pageUrl: message.payload.pageUrl,
-  });
-
-  saveImage(message.payload, message.settings)
-    .then(sendResponse)
-    .catch((error: unknown) => {
-      void logOffscreen("error", "Offscreen save request failed.", error);
-      sendResponse(toFailureResponse(error));
+  if (message.type === "SAVE_IMAGE_OFFSCREEN" && message.target === "offscreen") {
+    void logOffscreen("info", "Offscreen image save request received.", {
+      imageUrl: message.payload.imageUrl,
+      pageUrl: message.payload.pageUrl,
     });
 
-  return true;
+    saveImage(message.payload, message.settings)
+      .then(sendResponse)
+      .catch((error: unknown) => {
+        void logOffscreen("error", "Offscreen image save request failed.", error);
+        sendResponse(toFailureResponse(error));
+      });
+
+    return true;
+  }
+
+  if (message.type === "SAVE_VIDEO_OFFSCREEN" && message.target === "offscreen") {
+    void logOffscreen("info", "Offscreen video/GIF save request received.", {
+      videoUrl: message.payload.videoUrl,
+      pageUrl: message.payload.pageUrl,
+      mediaType: message.payload.mediaType,
+    });
+
+    saveVideo(message.payload, message.settings)
+      .then(sendResponse)
+      .catch((error: unknown) => {
+        void logOffscreen("error", "Offscreen video/GIF save request failed.", error);
+        sendResponse(toFailureResponse(error));
+      });
+
+    return true;
+  }
+
+  return false;
 });
 
 async function saveImage(
   payload: SaveImagePayload,
   settings: Settings,
-): Promise<SaveImageResponse> {
+): Promise<SaveMediaResponse> {
   const mediaType = normalizeMediaType(payload.mediaType);
-  const directoryHandle = await getDirectoryHandle(mediaType);
+  const url = settings.preferOriginalImage
+    ? toOriginalImageUrl(payload.imageUrl)
+    : payload.imageUrl;
+  const metadata = getImageMetadata(payload);
+
+  return saveFetchedMedia({
+    mediaType,
+    mediaLabel: "image",
+    base: buildFilenameBase(settings.filenameTemplate, metadata),
+    ext: metadata.ext,
+    mediaKey: getImageKey(payload.imageUrl),
+    duplicateBehavior: settings.duplicateBehavior,
+    fetchBlob: () => {
+      void logOffscreen("debug", "Fetching image blob.", {
+        preferredUrl: url,
+        fallbackUrl: payload.imageUrl,
+      });
+      return fetchImageBlob(url, payload.imageUrl);
+    },
+  });
+}
+
+async function saveVideo(
+  payload: SaveVideoPayload,
+  settings: Settings,
+): Promise<SaveMediaResponse> {
+  const metadata = getVideoMetadata(payload);
+
+  return saveFetchedMedia({
+    mediaType: payload.mediaType,
+    mediaLabel: payload.mediaType,
+    base: buildFilenameBase(settings.filenameTemplate, metadata),
+    ext: metadata.ext,
+    mediaKey: getVideoKey(payload.videoUrl),
+    duplicateBehavior: settings.duplicateBehavior,
+    fetchBlob: () => fetchVideoBlob(payload.videoUrl),
+  });
+}
+
+type SaveFetchedMediaInput = {
+  mediaType: MediaType;
+  mediaLabel: string;
+  base: string;
+  ext: string;
+  mediaKey: string;
+  duplicateBehavior: "overwrite" | "skip" | "rename";
+  fetchBlob: () => Promise<Blob>;
+};
+
+async function saveFetchedMedia(input: SaveFetchedMediaInput): Promise<SaveMediaResponse> {
+  const directoryHandle = await getDirectoryHandle(input.mediaType);
 
   if (!directoryHandle) {
     void logOffscreen("warn", "No save folder handle found in IndexedDB.", {
-      mediaType,
+      mediaType: input.mediaType,
     });
     return {
       ok: false,
@@ -53,6 +126,7 @@ async function saveImage(
 
   if (permission !== "granted") {
     void logOffscreen("warn", "Save folder permission was not granted.", {
+      mediaType: input.mediaType,
       permission,
     });
     return {
@@ -62,34 +136,26 @@ async function saveImage(
     };
   }
 
-  const url = settings.preferOriginalImage
-    ? toOriginalImageUrl(payload.imageUrl)
-    : payload.imageUrl;
-  void logOffscreen("debug", "Fetching image blob.", {
-    preferredUrl: url,
-    fallbackUrl: payload.imageUrl,
-  });
-  const blob = await fetchImageBlob(url, payload.imageUrl);
-  const metadata = getImageMetadata(payload);
-  const imageKey = getImageKey(payload.imageUrl);
-  const base = buildFilenameBase(settings.filenameTemplate, metadata);
+  const blob = await input.fetchBlob();
   const filename = await resolveFilename({
     directoryHandle,
-    base,
-    ext: metadata.ext,
-    imageKey,
-    mediaType,
-    duplicateBehavior: settings.duplicateBehavior,
+    base: input.base,
+    ext: input.ext,
+    mediaKey: input.mediaKey,
+    mediaType: input.mediaType,
+    duplicateBehavior: input.duplicateBehavior,
   });
 
   if (!filename) {
-    void logOffscreen("info", "Image save skipped by duplicate behavior.", {
-      filename: withExtension(base, metadata.ext),
+    void logOffscreen("info", "Save skipped by duplicate behavior.", {
+      mediaType: input.mediaType,
+      filename: withExtension(input.base, input.ext),
     });
-    return { ok: true, filename: withExtension(base, metadata.ext), skipped: true };
+    return { ok: true, filename: withExtension(input.base, input.ext), skipped: true };
   }
 
-  void logOffscreen("debug", "Writing image file.", {
+  void logOffscreen("debug", `Writing ${input.mediaLabel} file.`, {
+    mediaType: input.mediaType,
     filename,
     size: blob.size,
     type: blob.type,
@@ -98,9 +164,12 @@ async function saveImage(
   const writable = await fileHandle.createWritable();
   await writable.write(blob);
   await writable.close();
-  await saveSavedFileRecord({ filename, imageKey }, mediaType);
+  await saveSavedFileRecord({ filename, imageKey: input.mediaKey }, input.mediaType);
 
-  void logOffscreen("info", "Image file saved.", { filename });
+  void logOffscreen("info", `${input.mediaLabel} file saved.`, {
+    mediaType: input.mediaType,
+    filename,
+  });
   return { ok: true, filename };
 }
 
@@ -148,11 +217,27 @@ async function fetchImageBlob(preferredUrl: string, fallbackUrl: string): Promis
   throw new Error(`Image download failed: ${preferredResponse.status}`);
 }
 
+async function fetchVideoBlob(videoUrl: string): Promise<Blob> {
+  void logOffscreen("debug", "Fetching video blob.", { videoUrl });
+  const response = await fetch(videoUrl);
+  void logOffscreen("debug", "Video fetch completed.", {
+    status: response.status,
+    ok: response.ok,
+    url: videoUrl,
+  });
+
+  if (response.ok) {
+    return response.blob();
+  }
+
+  throw new Error(`Video download failed: ${response.status}`);
+}
+
 type ResolveFilenameInput = {
   directoryHandle: FileSystemDirectoryHandle;
   base: string;
   ext: string;
-  imageKey: string;
+  mediaKey: string;
   mediaType: MediaType;
   duplicateBehavior: "overwrite" | "skip" | "rename";
 };
@@ -175,12 +260,12 @@ async function resolveFilename(input: ResolveFilenameInput): Promise<string | nu
 
   const savedRecord = await getSavedFileRecord(initialFilename, input.mediaType);
 
-  if (!savedRecord || savedRecord.imageKey === input.imageKey) {
+  if (!savedRecord || savedRecord.imageKey === input.mediaKey) {
     return initialFilename;
   }
 
   const collisionFilename = withExtension(
-    `${input.base}_${await shortHash(input.imageKey)}`,
+    `${input.base}_${await shortHash(input.mediaKey)}`,
     input.ext,
   );
 
@@ -226,7 +311,7 @@ async function shortHash(value: string): Promise<string> {
   return bytes.map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function toFailureResponse(error: unknown): SaveImageResponse {
+function toFailureResponse(error: unknown): SaveMediaResponse {
   return {
     ok: false,
     error: error instanceof Error ? error.message : String(error),
