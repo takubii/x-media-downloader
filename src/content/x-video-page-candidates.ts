@@ -14,8 +14,11 @@ export type XVideoPageCandidateMessage = {
 };
 
 type MissingXVideoCandidateLog = {
+  reason: "missing-media-id" | "missing-candidate";
   tweetId?: string;
   mediaId: string | null;
+  posterUrl?: string;
+  videoSrc?: string;
   pageUrl: string;
 };
 
@@ -128,14 +131,11 @@ export function createXVideoPageCandidateStore(
 
     markMissing(video, statusInfo) {
       const mediaId = video.poster ? getXVideoMediaId(video.poster) : null;
-
-      if (!mediaId) {
-        return null;
-      }
-
-      const logKey = statusInfo.tweetId
-        ? getTweetMediaCacheKey(statusInfo.tweetId, mediaId)
-        : getMediaCacheKey(mediaId);
+      const logKey = mediaId
+        ? statusInfo.tweetId
+          ? getTweetMediaCacheKey(statusInfo.tweetId, mediaId)
+          : getMediaCacheKey(mediaId)
+        : getMissingMediaIdLogKey(video, statusInfo);
 
       if (missingLogs.has(logKey)) {
         return null;
@@ -144,8 +144,11 @@ export function createXVideoPageCandidateStore(
       addBoundedSetValue(missingLogs, logKey, MAX_MISSING_VIDEO_LOG_ENTRIES);
 
       return {
+        reason: mediaId ? "missing-candidate" : "missing-media-id",
         tweetId: statusInfo.tweetId,
         mediaId,
+        posterUrl: video.poster || undefined,
+        videoSrc: video.currentSrc || video.src || undefined,
         pageUrl: getPageUrl(),
       };
     },
@@ -174,6 +177,15 @@ function getTweetMediaCacheKey(tweetId: string, mediaId: string): string {
 
 function getMediaCacheKey(mediaId: string): string {
   return `media:${mediaId}`;
+}
+
+function getMissingMediaIdLogKey(video: HTMLVideoElement, statusInfo: XVideoStatusInfo): string {
+  return [
+    "missing-media-id",
+    statusInfo.tweetId || "",
+    video.poster || "",
+    video.currentSrc || video.src || "",
+  ].join(":");
 }
 
 function setBoundedMapValue<TKey, TValue>(

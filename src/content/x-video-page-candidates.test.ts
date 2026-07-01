@@ -90,10 +90,33 @@ describe("createXVideoPageCandidateStore", () => {
     const video = { poster: posterUrl } as HTMLVideoElement;
 
     expect(store.markMissing(video, { tweetId: "2072068448268775859" })).toEqual({
+      reason: "missing-candidate",
       tweetId: "2072068448268775859",
       mediaId: "2072046031202562048",
+      posterUrl,
       pageUrl: "https://x.com/home",
     });
     expect(store.markMissing(video, { tweetId: "2072068448268775859" })).toBeNull();
+  });
+
+  test("emits a missing-media-id log once when a hovered video has no recognizable poster", () => {
+    const store = createXVideoPageCandidateStore({
+      getPageUrl: () => "https://x.com/claudeai/status/2072402636813607381",
+    });
+    const video = {
+      currentSrc: "blob:https://x.com/video",
+      poster: "https://pbs.twimg.com/card_img/example.jpg",
+      src: "",
+    } as HTMLVideoElement;
+
+    expect(store.markMissing(video, { tweetId: "2072402636813607381" })).toEqual({
+      reason: "missing-media-id",
+      tweetId: "2072402636813607381",
+      mediaId: null,
+      posterUrl: "https://pbs.twimg.com/card_img/example.jpg",
+      videoSrc: "blob:https://x.com/video",
+      pageUrl: "https://x.com/claudeai/status/2072402636813607381",
+    });
+    expect(store.markMissing(video, { tweetId: "2072402636813607381" })).toBeNull();
   });
 });

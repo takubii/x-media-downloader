@@ -13,7 +13,7 @@
     "icons": "node scripts/generate-icons.mjs",
     "knip": "knip",
     "lint": "oxlint . --deny-warnings --vitest-plugin",
-    "package": "pnpm build:release && node scripts/package-extension.mjs",
+    "package": "pnpm build:release && node scripts/package-extension.mjs && pnpm build",
     "test": "vitest run",
     "type": "tsc --noEmit"
   },
