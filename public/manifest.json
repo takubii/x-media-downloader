@@ -33,6 +33,7 @@
     "https://x.com/*",
     "https://twitter.com/*",
     "https://api.x.com/*",
+    "https://api.twitter.com/*",
     "https://abs.twimg.com/*",
     "https://pbs.twimg.com/*",
     "https://video.twimg.com/*"

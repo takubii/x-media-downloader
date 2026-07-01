@@ -22,7 +22,10 @@ type FetchLike = typeof fetch;
 
 const MAIN_BUNDLE_PATTERN = /\/responsive-web\/client-web\/main\.[^"']+\.js/;
 const TWEET_RESULT_OPERATION_NAME = "TweetResultByRestId";
-const GUEST_ACTIVATE_URL = "https://api.x.com/1.1/guest/activate.json";
+const GUEST_ACTIVATE_URLS = [
+  "https://api.x.com/1.1/guest/activate.json",
+  "https://api.twitter.com/1.1/guest/activate.json",
+];
 const VIDEO_HOST = "video.twimg.com";
 const VIDEO_MP4_EXTENSION = ".mp4";
 
@@ -36,28 +39,28 @@ export async function resolveXVideoFromApi(
   fetchImpl: FetchLike = fetch,
 ): Promise<ResolveXVideoResponse> {
   const config = await getXVideoApiConfig(payload.mainBundleUrls, fetchImpl);
-  const guestToken = await getGuestToken(config.bearerToken, fetchImpl);
-  const response = await fetchImpl(buildTweetResultUrl(config, payload.tweetId), {
-    method: "GET",
-    headers: {
-      accept: "*/*",
-      authorization: config.bearerToken,
-      "x-guest-token": guestToken,
-      "x-twitter-active-user": "yes",
-      "x-twitter-client-language": "ja",
-    },
-  });
+  const signedInResponse = await fetchTweetResult(config, payload.tweetId, fetchImpl);
+  const signedInCandidate = await getVideoCandidateFromResponse(signedInResponse, payload.mediaId);
 
-  if (!response.ok) {
+  if (signedInCandidate) {
     return {
-      ok: false,
-      error: `X video API request failed: ${response.status}`,
+      ok: true,
+      candidate: signedInCandidate,
     };
   }
 
-  const candidate = findBestVideoCandidate(await response.json(), payload.mediaId);
+  const guestToken = await getGuestToken(config.bearerToken, fetchImpl);
+  const guestResponse = await fetchTweetResult(config, payload.tweetId, fetchImpl, guestToken);
+  const guestCandidate = await getVideoCandidateFromResponse(guestResponse, payload.mediaId);
 
-  if (!candidate) {
+  if (!guestResponse.ok) {
+    return {
+      ok: false,
+      error: `X video API request failed: ${guestResponse.status}`,
+    };
+  }
+
+  if (!guestCandidate) {
     return {
       ok: false,
       error: "X video API response did not include a matching MP4 variant.",
@@ -66,8 +69,42 @@ export async function resolveXVideoFromApi(
 
   return {
     ok: true,
-    candidate,
+    candidate: guestCandidate,
   };
+}
+
+function fetchTweetResult(
+  config: XVideoApiConfig,
+  tweetId: string,
+  fetchImpl: FetchLike,
+  guestToken?: string,
+): Promise<Response> {
+  return fetchImpl(buildTweetResultUrl(config, tweetId), {
+    method: "GET",
+    credentials: "include",
+    headers: {
+      accept: "*/*",
+      authorization: config.bearerToken,
+      ...(guestToken ? { "x-guest-token": guestToken } : {}),
+      "x-twitter-active-user": "yes",
+      "x-twitter-client-language": "ja",
+    },
+  });
+}
+
+async function getVideoCandidateFromResponse(
+  response: Response,
+  mediaId?: string,
+): Promise<XVideoCandidate | null> {
+  if (!response.ok) {
+    return null;
+  }
+
+  try {
+    return findBestVideoCandidate(await response.json(), mediaId);
+  } catch {
+    return null;
+  }
 }
 
 export function parseXVideoApiConfig(bundleText: string): XVideoApiConfig | null {
@@ -209,28 +246,39 @@ async function getGuestToken(bearerToken: string, fetchImpl: FetchLike): Promise
     return cachedGuestToken;
   }
 
-  const response = await fetchImpl(GUEST_ACTIVATE_URL, {
-    method: "POST",
-    headers: {
-      authorization: bearerToken,
-      "content-type": "application/json",
-    },
-  });
+  const failures: string[] = [];
 
-  if (!response.ok) {
-    throw new Error(`X guest token request failed: ${response.status}`);
+  for (const url of GUEST_ACTIVATE_URLS) {
+    const response = await fetchImpl(url, {
+      method: "POST",
+      headers: {
+        accept: "*/*",
+        authorization: bearerToken,
+        "content-type": "application/json",
+        "x-twitter-active-user": "yes",
+        "x-twitter-client-language": "ja",
+      },
+    });
+
+    if (!response.ok) {
+      failures.push(`${new URL(url).host}: ${response.status}`);
+      continue;
+    }
+
+    const json = (await response.json()) as { guest_token?: unknown };
+    const guestToken = typeof json.guest_token === "string" ? json.guest_token : "";
+
+    if (!guestToken) {
+      failures.push(`${new URL(url).host}: missing token`);
+      continue;
+    }
+
+    cachedGuestTokenKey = bearerToken;
+    cachedGuestToken = guestToken;
+    return guestToken;
   }
 
-  const json = (await response.json()) as { guest_token?: unknown };
-  const guestToken = typeof json.guest_token === "string" ? json.guest_token : "";
-
-  if (!guestToken) {
-    throw new Error("X guest token response did not include a token.");
-  }
-
-  cachedGuestTokenKey = bearerToken;
-  cachedGuestToken = guestToken;
-  return guestToken;
+  throw new Error(`X guest token request failed: ${failures.join(", ")}`);
 }
 
 function getBestMp4Variant(videoInfo: unknown): XVideoVariant | null {

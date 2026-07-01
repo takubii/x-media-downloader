@@ -370,16 +370,15 @@ function queueVideoResolution(input: {
 
   pendingVideoResolutions.add(cacheKey);
 
-  chrome.runtime
-    .sendMessage({
-      type: "RESOLVE_X_VIDEO",
-      payload: {
-        tweetId,
-        mediaId,
-        pageUrl: location.href,
-        mainBundleUrls: getMainBundleUrls(),
-      },
-    })
+  sendRuntimeMessage<ResolveXVideoResponse>({
+    type: "RESOLVE_X_VIDEO",
+    payload: {
+      tweetId,
+      mediaId,
+      pageUrl: location.href,
+      mainBundleUrls: getMainBundleUrls(),
+    },
+  })
     .then((response: ResolveXVideoResponse) => {
       pendingVideoResolutions.delete(cacheKey);
 
@@ -400,6 +399,18 @@ function queueVideoResolution(input: {
       pendingVideoResolutions.delete(cacheKey);
       void logContent("debug", "X video API resolution request failed.", error);
     });
+}
+
+function sendRuntimeMessage<TResponse>(message: unknown): Promise<TResponse> {
+  try {
+    if (!chrome.runtime?.id) {
+      return Promise.reject(new Error("Extension context is unavailable."));
+    }
+
+    return chrome.runtime.sendMessage(message) as Promise<TResponse>;
+  } catch (error) {
+    return Promise.reject(error);
+  }
 }
 
 function showResolvedVideoIfHovered(video: HTMLVideoElement, info: SaveVideoPayload): void {
