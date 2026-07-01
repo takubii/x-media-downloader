@@ -136,7 +136,6 @@ async function saveFetchedMedia(input: SaveFetchedMediaInput): Promise<SaveMedia
     };
   }
 
-  const blob = await input.fetchBlob();
   const filename = await resolveFilename({
     directoryHandle,
     base: input.base,
@@ -154,6 +153,7 @@ async function saveFetchedMedia(input: SaveFetchedMediaInput): Promise<SaveMedia
     return { ok: true, filename: withExtension(input.base, input.ext), skipped: true };
   }
 
+  const blob = await input.fetchBlob();
   void logOffscreen("debug", `Writing ${input.mediaLabel} file.`, {
     mediaType: input.mediaType,
     filename,
