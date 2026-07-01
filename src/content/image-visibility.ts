@@ -61,7 +61,7 @@ export function isPointInsideRect(x: number, y: number, rect: DOMRect): boolean 
   return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
 }
 
-export function isElementUncovered(element: Element, rect: DOMRect): boolean {
+function isElementUncovered(element: Element, rect: DOMRect): boolean {
   const inset = Math.min(IMAGE_VISIBILITY_INSET, rect.width / 2, rect.height / 2);
   const horizontalCenter = rect.left + rect.width / 2;
   const verticalCenter = rect.top + rect.height / 2;

@@ -1,14 +1,13 @@
 import { getContentImageKey } from "./image-key";
-import {
-  getEligibleImage,
-  getVisibleImageRect,
-  isElementUncovered,
-  isPointInsideRect,
-} from "./image-visibility";
+import { getEligibleImage, getVisibleImageRect, isPointInsideRect } from "./image-visibility";
 import { createImageSaveStateStore } from "./save-state";
 import { createSaveButton } from "./save-button";
-import { getXVideoKey, resolveXVideoCandidate } from "./video-target";
-import type { SaveMediaResponse, SaveVideoPayload } from "../shared/messages";
+import { getXVideoKey, getXVideoMediaId, resolveXVideoCandidate } from "./video-target";
+import type {
+  ResolveXVideoResponse,
+  SaveMediaResponse,
+  SaveVideoPayload,
+} from "../shared/messages";
 
 type DebugLogLevel = "debug" | "info" | "warn" | "error";
 
@@ -52,8 +51,13 @@ let visibilityUpdateFrame: number | null = null;
 
 const saveButton = createSaveButton();
 const saveStates = createImageSaveStateStore();
+const resolvedVideoCandidates = new Map<string, SaveVideoPayload>();
+const pendingVideoResolutions = new Set<string>();
 
 document.addEventListener("mouseover", (event) => {
+  pointerX = event.clientX;
+  pointerY = event.clientY;
+
   const mediaTarget = getEligibleMediaTarget(event);
 
   if (!mediaTarget) {
@@ -61,8 +65,6 @@ document.addEventListener("mouseover", (event) => {
   }
 
   currentMediaTarget = mediaTarget;
-  pointerX = event.clientX;
-  pointerY = event.clientY;
   updateButtonVisibility();
 });
 
@@ -280,27 +282,158 @@ function getEligibleVideoTarget(event: MouseEvent): VideoMediaTarget | null {
       posterUrl: video.poster,
       sourceText: document.documentElement.innerHTML,
     });
-
-  if (!candidate) {
-    return null;
-  }
-
   const statusInfo = findStatusInfo(video);
 
+  if (candidate) {
+    return buildVideoMediaTarget(video, buildVideoInfo(video, candidate, statusInfo));
+  }
+
+  const cachedInfo = getCachedResolvedVideoInfo({
+    video,
+    statusInfo,
+  });
+
+  if (cachedInfo) {
+    return {
+      kind: "video",
+      element: video,
+      key: getXVideoKey(cachedInfo.videoUrl),
+      info: cachedInfo,
+    };
+  }
+
+  queueVideoResolution({ video, statusInfo });
+
+  return null;
+}
+
+function buildVideoMediaTarget(video: HTMLVideoElement, info: SaveVideoPayload): VideoMediaTarget {
   return {
     kind: "video",
     element: video,
-    key: getXVideoKey(candidate.videoUrl),
-    info: {
-      videoUrl: candidate.videoUrl,
-      pageUrl: location.href,
-      mediaType: candidate.mediaType,
-      posterUrl: video.poster || undefined,
-      bitrate: candidate.bitrate,
-      author: statusInfo.author,
-      tweetId: statusInfo.tweetId,
-    },
+    key: getXVideoKey(info.videoUrl),
+    info,
   };
+}
+
+function buildVideoInfo(
+  video: HTMLVideoElement,
+  candidate: {
+    videoUrl: string;
+    mediaType: "video" | "gif";
+    bitrate?: number;
+  },
+  statusInfo: { author?: string; tweetId?: string },
+): SaveVideoPayload {
+  return {
+    videoUrl: candidate.videoUrl,
+    pageUrl: location.href,
+    mediaType: candidate.mediaType,
+    posterUrl: video.poster || undefined,
+    bitrate: candidate.bitrate,
+    author: statusInfo.author,
+    tweetId: statusInfo.tweetId,
+  };
+}
+
+function getCachedResolvedVideoInfo(input: {
+  video: HTMLVideoElement;
+  statusInfo: { author?: string; tweetId?: string };
+}): SaveVideoPayload | null {
+  const cacheKey = getVideoResolutionCacheKey(input.video, input.statusInfo);
+
+  if (!cacheKey) {
+    return null;
+  }
+
+  return resolvedVideoCandidates.get(cacheKey) || null;
+}
+
+function queueVideoResolution(input: {
+  video: HTMLVideoElement;
+  statusInfo: { author?: string; tweetId?: string };
+}): void {
+  const cacheKey = getVideoResolutionCacheKey(input.video, input.statusInfo);
+
+  if (!cacheKey || pendingVideoResolutions.has(cacheKey)) {
+    return;
+  }
+
+  const mediaId = input.video.poster
+    ? getXVideoMediaId(input.video.poster) || undefined
+    : undefined;
+  const tweetId = input.statusInfo.tweetId;
+
+  if (!tweetId || !mediaId) {
+    return;
+  }
+
+  pendingVideoResolutions.add(cacheKey);
+
+  chrome.runtime
+    .sendMessage({
+      type: "RESOLVE_X_VIDEO",
+      payload: {
+        tweetId,
+        mediaId,
+        pageUrl: location.href,
+        mainBundleUrls: getMainBundleUrls(),
+      },
+    })
+    .then((response: ResolveXVideoResponse) => {
+      pendingVideoResolutions.delete(cacheKey);
+
+      if (!response.ok) {
+        void logContent("debug", "X video API resolution returned no candidate.", {
+          tweetId,
+          mediaId,
+          error: response.error,
+        });
+        return;
+      }
+
+      const info = buildVideoInfo(input.video, response.candidate, input.statusInfo);
+      resolvedVideoCandidates.set(cacheKey, info);
+      showResolvedVideoIfHovered(input.video, info);
+    })
+    .catch((error: unknown) => {
+      pendingVideoResolutions.delete(cacheKey);
+      void logContent("debug", "X video API resolution request failed.", error);
+    });
+}
+
+function showResolvedVideoIfHovered(video: HTMLVideoElement, info: SaveVideoPayload): void {
+  if (!video.isConnected || pointerX === null || pointerY === null) {
+    return;
+  }
+
+  const rect = video.getBoundingClientRect();
+
+  if (!isPointInsideRect(pointerX, pointerY, rect)) {
+    return;
+  }
+
+  currentMediaTarget = buildVideoMediaTarget(video, info);
+  updateButtonVisibility();
+}
+
+function getVideoResolutionCacheKey(
+  video: HTMLVideoElement,
+  statusInfo: { tweetId?: string },
+): string | null {
+  const mediaId = video.poster ? getXVideoMediaId(video.poster) : null;
+
+  if (statusInfo.tweetId && mediaId) {
+    return `${statusInfo.tweetId}:${mediaId}`;
+  }
+
+  return null;
+}
+
+function getMainBundleUrls(): string[] {
+  return Array.from(document.scripts)
+    .map((script) => script.src)
+    .filter((src) => /\/responsive-web\/client-web\/main\.[^/]+\.js$/.test(src));
 }
 
 function findHoveredVideo(
@@ -352,10 +485,6 @@ function getVisibleVideoRect(video: HTMLVideoElement): DOMRect | null {
     return null;
   }
 
-  if (!isElementUncovered(video, rect)) {
-    return null;
-  }
-
   return rect;
 }
 
@@ -363,13 +492,12 @@ function findStatusInfo(element: Element): {
   author?: string;
   tweetId?: string;
 } {
+  const article = element.closest("article");
   const candidates = [
-    location.pathname,
     ...Array.from(
-      (element.closest("article") || document).querySelectorAll<HTMLAnchorElement>(
-        'a[href*="/status/"]',
-      ),
+      (article || document).querySelectorAll<HTMLAnchorElement>('a[href*="/status/"]'),
     ).map((anchor) => anchor.getAttribute("href") || ""),
+    location.pathname,
   ];
 
   for (const candidate of candidates) {

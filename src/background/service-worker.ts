@@ -6,6 +6,7 @@ import {
 } from "../shared/debug-log";
 import type { RuntimeMessage, SaveMediaResponse } from "../shared/messages";
 import { getSettings } from "../shared/settings";
+import { resolveXVideoFromApi } from "./x-video-api";
 
 const OFFSCREEN_DOCUMENT_PATH = "src/offscreen/offscreen.html";
 
@@ -33,6 +34,26 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResp
     void chrome.runtime.openOptionsPage();
     sendResponse({ ok: true });
     return false;
+  }
+
+  if (message.type === "RESOLVE_X_VIDEO") {
+    void logBackground("debug", "Resolving X video from GraphQL API.", {
+      tweetId: message.payload.tweetId,
+      mediaId: message.payload.mediaId,
+      pageUrl: message.payload.pageUrl,
+    });
+
+    resolveXVideoFromApi(message.payload)
+      .then(sendResponse)
+      .catch((error: unknown) => {
+        void logBackground("warn", "X video API resolution failed.", error);
+        sendResponse({
+          ok: false,
+          error: getErrorMessage(error),
+        });
+      });
+
+    return true;
   }
 
   if (message.type !== "SAVE_IMAGE" && message.type !== "SAVE_VIDEO") {
