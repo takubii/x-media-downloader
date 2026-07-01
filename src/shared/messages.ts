@@ -25,8 +25,6 @@ export type SaveMediaResponse =
   | { ok: true; filename: string; skipped?: boolean }
   | { ok: false; error: string; reason?: SaveFailureReason };
 
-export type SaveImageResponse = SaveMediaResponse;
-
 export type DebugLogSource = "content" | "background" | "offscreen" | "options";
 export type DebugLogLevel = "debug" | "info" | "warn" | "error";
 
