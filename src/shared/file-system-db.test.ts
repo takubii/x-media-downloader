@@ -24,7 +24,7 @@ describe("file-system-db storage keys", () => {
   test("separates saved file records by media type", () => {
     expect(getSavedFileRecordStorageKey("tweet.mp4", "video")).toBe("video:tweet.mp4");
     expect(getSavedFileRecordStorageKey("tweet.jpg", "image")).toBe("image:tweet.jpg");
-    expect(getSavedFileRecordStorageKey("tweet.mp4", "gif")).toBe("gif:tweet.mp4");
+    expect(getSavedFileRecordStorageKey("tweet.gif", "gif")).toBe("gif:tweet.gif");
   });
 
   test("uses image as the default saved file record media type", () => {
@@ -84,13 +84,13 @@ describe("file-system-db media type storage", () => {
 
   test("keeps saved file records independent by media type", async () => {
     await saveSavedFileRecord({ filename: "tweet.mp4", imageKey: "video-key" }, "video");
-    await saveSavedFileRecord({ filename: "tweet.mp4", imageKey: "gif-key" }, "gif");
+    await saveSavedFileRecord({ filename: "tweet.gif", imageKey: "gif-key" }, "gif");
 
     expect(await getSavedFileRecord("tweet.mp4", "video")).toMatchObject({
       imageKey: "video-key",
       mediaType: "video",
     });
-    expect(await getSavedFileRecord("tweet.mp4", "gif")).toMatchObject({
+    expect(await getSavedFileRecord("tweet.gif", "gif")).toMatchObject({
       imageKey: "gif-key",
       mediaType: "gif",
     });

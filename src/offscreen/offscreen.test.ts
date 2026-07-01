@@ -85,7 +85,7 @@ describe("offscreen video saving", () => {
 
   test("skips duplicate GIF-style media without fetching", async () => {
     dbMocks.getDirectoryHandle.mockResolvedValue(
-      createDirectoryHandle([], { existingFilenames: ["example_1730942564943982592_clip.mp4"] }),
+      createDirectoryHandle([], { existingFilenames: ["example_1730942564943982592_clip.gif"] }),
     );
     const listener = await loadOffscreenListener();
 
@@ -104,12 +104,51 @@ describe("offscreen video saving", () => {
 
     expect(response).toEqual({
       ok: true,
-      filename: "example_1730942564943982592_clip.mp4",
+      filename: "example_1730942564943982592_clip.gif",
       skipped: true,
     });
     expect(dbMocks.getDirectoryHandle).toHaveBeenCalledWith("gif");
     expect(fetch).not.toHaveBeenCalled();
     expect(dbMocks.saveSavedFileRecord).not.toHaveBeenCalled();
+  });
+
+  test("saves GIF-style media to the GIF folder with a .gif filename", async () => {
+    const writtenFiles: WrittenFile[] = [];
+    dbMocks.getDirectoryHandle.mockResolvedValue(createDirectoryHandle(writtenFiles));
+    dbMocks.getSavedFileRecord.mockResolvedValue(null);
+    const listener = await loadOffscreenListener();
+
+    const response = await sendMessage(listener, {
+      type: "SAVE_VIDEO_OFFSCREEN",
+      target: "offscreen",
+      settings: createSettings(),
+      payload: {
+        videoUrl: "https://video.twimg.com/tweet_video/clip.mp4?tag=12",
+        pageUrl: "https://x.com/example/status/1730942564943982592",
+        mediaType: "gif",
+        author: "example",
+        tweetId: "1730942564943982592",
+      },
+    });
+
+    expect(response).toEqual({
+      ok: true,
+      filename: "example_1730942564943982592_clip.gif",
+    });
+    expect(dbMocks.getDirectoryHandle).toHaveBeenCalledWith("gif");
+    expect(writtenFiles).toMatchObject([
+      {
+        filename: "example_1730942564943982592_clip.gif",
+        blobType: "video/mp4",
+      },
+    ]);
+    expect(dbMocks.saveSavedFileRecord).toHaveBeenCalledWith(
+      {
+        filename: "example_1730942564943982592_clip.gif",
+        imageKey: "https://video.twimg.com/tweet_video/clip.mp4",
+      },
+      "gif",
+    );
   });
 });
 

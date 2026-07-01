@@ -11,7 +11,7 @@ export function getVideoMetadata(payload: SaveVideoPayload): ImageMetadata {
     author: payload.author || "unknown",
     tweetId: payload.tweetId || "unknown",
     originalName: getOriginalName(url),
-    ext: "mp4",
+    ext: payload.mediaType === "gif" ? "gif" : "mp4",
   };
 }
 
