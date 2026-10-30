@@ -20,7 +20,7 @@
   "devDependencies": {
     "@types/chrome": "^0.3.7",
     "@types/node": "^25.9.9",
-    "knip": "^6.43.0",
+    "knip": "^6.44.0",
     "oxfmt": "^0.71.0",
     "oxlint": "^1.90.0",
     "typescript": "^7.0.2",
