@@ -21,7 +21,7 @@
     "@types/chrome": "^0.3.7",
     "@types/node": "^25.9.9",
     "knip": "^6.46.1",
-    "oxfmt": "^0.71.0",
+    "oxfmt": "^0.79.0",
     "oxlint": "^1.94.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",
